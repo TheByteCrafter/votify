@@ -21,12 +21,12 @@ export default function RegisterVoter() {
         e.preventDefault();
         setLoading(true);
 
-        // Check if profile already exists
+
         const { data: profiles, error: profileError } = await supabase
             .from('profiles')
             .select('*')
             .or(`id_number.eq.${formData.idNumber},phone_number.eq.${formData.phoneNumber}`)
-            .limit(2); // fetch up to 2 rows
+            .limit(2);
 
         if (profileError) {
             console.error("Query failed:", profileError.message);

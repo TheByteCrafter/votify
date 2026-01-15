@@ -29,7 +29,7 @@ export default function UserPortal() {
     const [aspirants, setAspirants] = useState([]);
     const [votes, setVotes] = useState({});
     const [userVotedSeats, setUserVotedSeats] = useState({});
-    const [activeTab, setActiveTab] = useState('President');
+    const [activeTab, setActiveTab] = useState('Presidential');
     const [votingStatus, setVotingStatus] = useState({ loading: false, message: '', type: '' });
     const [showResults, setShowResults] = useState(true);
     const [chartType, setChartType] = useState('bar'); // 'bar', 'area', 'radar'
@@ -81,28 +81,34 @@ export default function UserPortal() {
                     }
                 }
             }
-
             // Fetch Global Vote Counts
-            const { data: votesData } = await supabase
-                .from('votes')
-                .select('aspirant_id, count');
+            const { data: votesData } = await supabase.rpc('get_vote_counts');
 
             if (votesData) {
                 const counts = {};
-                votesData.forEach(v => { counts[v.aspirant_id] = v.count; });
+                votesData.forEach(v => {
+                    counts[v.aspirant_id] = v.total;
+                });
                 setVotes(counts);
             }
-
             // Fetch User's Cast Votes
-            const { data: castVotes } = await supabase
-                .from('votes')
-                .select('aspirant_id, aspirants!inner(seat)')
+            const { data: castVotes, error } = await supabase
+                .from('user_votes')
+                .select('aspirant_id')
                 .eq('user_id', user.id);
 
-            if (castVotes) {
+            if (error) {
+                console.error(error);
+            }
+
+            if (castVotes && aspirantsData) {
                 const map = {};
                 castVotes.forEach(v => {
-                    map[v.aspirants.seat] = v.aspirant_id;
+                    // Find the seat for this aspirant from the loaded aspirants list
+                    const aspirant = aspirantsData.find(a => a.id === v.aspirant_id);
+                    if (aspirant) {
+                        map[aspirant.seat] = v.aspirant_id;
+                    }
                 });
                 setUserVotedSeats(map);
             }
@@ -110,13 +116,16 @@ export default function UserPortal() {
 
         fetchData();
 
-        // Set up Realtime subscriptions
+        // Set up Realtime subscriptions - Listen to 'user_votes' inserts
         const votesSubscription = supabase
-            .channel('public:votes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'votes' }, (payload) => {
+            .channel('public:user_votes')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_votes' }, (payload) => {
+                // Ignore our own vote updates since we handle them optimistically
+                if (payload.new.user_id === user.id) return;
+
                 setVotes(prev => ({
                     ...prev,
-                    [payload.new.aspirant_id]: payload.new.count
+                    [payload.new.aspirant_id]: (prev[payload.new.aspirant_id] || 0) + 1
                 }));
             })
             .subscribe();
@@ -139,22 +148,22 @@ export default function UserPortal() {
         setVotingStatus({ loading: true, message: 'Casting your vote...', type: 'info' });
 
         try {
-            const { data: existingVote } = await supabase
-                .from('votes')
-                .select('*')
-                .eq('aspirant_id', aspirant.id)
-                .single();
-
-            const { error: voteError } = await supabase
-                .from('votes')
-                .upsert({
-                    aspirant_id: aspirant.id,
-                    count: (existingVote?.count || 0) + 1,
+            // Insert vote into user_votes ledger
+            const { error: userVoteError } = await supabase
+                .from('user_votes')
+                .insert({
                     user_id: user.id,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'aspirant_id' });
+                    aspirant_id: aspirant.id,
+                    voted_at: new Date().toISOString()
+                });
 
-            if (voteError) throw voteError;
+            if (userVoteError) throw userVoteError;
+
+            // Optimistic update
+            setVotes(prev => ({
+                ...prev,
+                [aspirant.id]: (prev[aspirant.id] || 0) + 1
+            }));
 
             setUserVotedSeats(prev => ({ ...prev, [aspirant.seat]: aspirant.id }));
             setVotingStatus({
@@ -173,10 +182,31 @@ export default function UserPortal() {
     };
 
     const seats = useMemo(() => [...new Set(aspirants.map(a => a.seat))], [aspirants]);
-    const filteredAspirants = useMemo(() =>
-        aspirants.filter(a => a.seat === activeTab),
-        [aspirants, activeTab]
-    );
+
+    const filteredAspirants = useMemo(() => {
+        if (!profile) return [];
+
+        return aspirants.filter(a => {
+            // Basic Seat Filter
+            if (a.seat !== activeTab) return false;
+
+            // Geographical Filtering
+            switch (a.seat) {
+                case 'Presidential':
+                    return true;
+                case 'Governor':
+                case 'Senator':
+                case 'Women Rep':
+                    return a.county === profile.county;
+                case 'MP':
+                    return a.constituency === profile.constituency;
+                case 'MCA':
+                    return a.ward === profile.ward;
+                default:
+                    return true;
+            }
+        });
+    }, [aspirants, activeTab, profile]);
 
     // Prepare comprehensive chart data for current seat
     const chartData = useMemo(() => {
@@ -184,7 +214,6 @@ export default function UserPortal() {
             const voteCount = votes[aspirant.id] || 0;
             const party = aspirant.party;
 
-            // Generate distinct colors based on party
             let color;
             if (party.includes('Party')) color = '#3B82F6';
             else if (party.includes('Movement')) color = '#10B981';

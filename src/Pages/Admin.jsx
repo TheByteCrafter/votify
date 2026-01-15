@@ -127,12 +127,21 @@ export default function AdminPortal() {
 
             if (registrationsData) setRegistrations(registrationsData);
 
-            // Fetch votes
+            // Fetch votes from the new users_votes table
+            //
             const { data: votesData } = await supabase
-                .from('votes')
-                .select('*');
+                .from('user_votes')
+                .select('aspirant_id');
 
-            if (votesData) setVotes(votesData);
+            if (votesData) {
+                // Build counts object
+                const counts = {};
+                votesData.forEach(v => {
+                    counts[v.aspirant_id] = (counts[v.aspirant_id] || 0) + 1;
+                });
+                setVotes(counts);
+            }
+
 
             // Fetch profiles
             const { data: profilesData } = await supabase
@@ -142,8 +151,8 @@ export default function AdminPortal() {
 
             if (profilesData) setProfiles(profilesData);
 
-            // Calculate statistics
-            const totalVotes = votesData?.reduce((sum, vote) => sum + (vote.count || 0), 0) || 0;
+            const totalVotes = (votesData || [])
+                .reduce((sum, vote) => sum + 1, 0);
             const pendingRegistrations = registrationsData?.filter(r => r.status === 'pending').length || 0;
             const approvedRegistrations = registrationsData?.filter(r => r.status === 'approved').length || 0;
             const rejectedRegistrations = registrationsData?.filter(r => r.status === 'rejected').length || 0;
@@ -171,18 +180,38 @@ export default function AdminPortal() {
     const fetchVotingTrends = async () => {
         setTrendsLoading(true);
         try {
-            // Get the earliest vote update time
-            const { data: earliestVote } = await supabase
-                .from('votes')
-                .select('updated_at')
-                .order('updated_at', { ascending: true })
-                .limit(1);
+            // Call your RPC that groups votes by time
+            const { data: votesData, error } = await supabase
+                .from('user_votes')
+                .select('voted_at');
 
-            const trends = await estimateVotingPattern();
-            setVotingTrends(trends);
+            if (!error && votesData) {
+                const buckets = {};
+
+                // Initialize all 24 hours with 0
+                for (let hour = 0; hour < 24; hour++) {
+                    const hourLabel = `${hour.toString().padStart(2, '0')}:00`;
+                    buckets[hourLabel] = 0;
+                }
+
+                // Count votes into the right hour
+                votesData.forEach(v => {
+                    const date = new Date(v.voted_at);
+                    const hourLabel = `${date.getHours().toString().padStart(2, '0')}:00`;
+                    buckets[hourLabel] += 1;
+                });
+
+                // Convert to chart data
+                const chartTrendsData = Object.entries(buckets).map(([hour, votes]) => ({
+                    hour,
+                    votes
+                }));
+
+                setVotingTrends(chartTrendsData);
+            }
         } catch (error) {
             console.error('Error fetching voting trends:', error);
-            // Generate trends based on total votes
+            // Fallback: generate trends based on total votes
             const trends = generateTrendsFromTotalVotes(stats.totalVotes);
             setVotingTrends(trends);
         } finally {
@@ -192,9 +221,7 @@ export default function AdminPortal() {
 
     const estimateVotingPattern = async () => {
         // Get all votes to analyze pattern
-        const { data: allVotes } = await supabase
-            .from('votes')
-            .select('count, updated_at');
+        const { data: allVotes } = await supabase.rpc('get_vote_counts');
 
         if (!allVotes || allVotes.length === 0) {
             return generateTrendsFromTotalVotes(stats.totalVotes);
@@ -274,49 +301,24 @@ export default function AdminPortal() {
         return result;
     };
 
-    // Generate trends from current vote data (approximation)
-    const generateTrendsFromCurrentData = async () => {
-        try {
-            // Get total votes count
-            const { data: votesData } = await supabase
-                .from('votes')
-                .select('count');
-
-            if (votesData) {
-                const totalVotes = votesData.reduce((sum, vote) => sum + (vote.count || 0), 0);
-
-                // Generate realistic trend based on current total
-                const trendData = generateRealisticTrends(totalVotes);
-                setVotingTrends(trendData);
-            }
-        } catch (error) {
-            console.error('Error generating trends:', error);
-        }
-    };
-
     // Generate realistic trending data based on total votes
     const generateRealisticTrends = (totalVotes) => {
         const trends = [];
         const hours = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '23:59'];
 
-        // Create a typical voting pattern
         let cumulativeVotes = 0;
-        const peakHours = [10, 11, 12, 13, 14, 15, 16]; // Peak voting hours
-        const nightHours = [0, 1, 2, 3, 4, 5]; // Low activity hours
+        const peakHours = [10, 11, 12, 13, 14, 15, 16];
+        const nightHours = [0, 1, 2, 3, 4, 5];
 
         for (let hour = 0; hour < 24; hour++) {
             const hourLabel = `${hour.toString().padStart(2, '0')}:00`;
 
-            // Calculate votes for this hour based on typical patterns
             let hourVotes;
             if (peakHours.includes(hour)) {
-                // Peak hours: higher activity
                 hourVotes = Math.floor(totalVotes * 0.15 / peakHours.length);
             } else if (nightHours.includes(hour)) {
-                // Night hours: low activity
                 hourVotes = Math.floor(totalVotes * 0.05 / nightHours.length);
             } else {
-                // Normal hours
                 hourVotes = Math.floor(totalVotes * 0.1 / (24 - peakHours.length - nightHours.length));
             }
 
@@ -372,7 +374,11 @@ export default function AdminPortal() {
                         <div className="flex items-center gap-2">
                             <div className="h-3 w-3 rounded-full bg-green-500" />
                             <span className="text-sm font-medium">Votes:</span>
-                            <span className="text-sm font-bold">{payload[0].value.toLocaleString()}</span>
+                            <span className="text-sm font-bold">
+                                {payload?.[0]?.value
+                                    ? payload[0].value.toLocaleString()
+                                    : '0'}
+                            </span>
                         </div>
                         {payload[0].payload.previousHour && (
                             <div className="text-xs text-gray-500">
@@ -607,9 +613,10 @@ export default function AdminPortal() {
     // Prepare chart data
     const getChartData = () => {
         const seatData = {};
+
         aspirants.forEach(aspirant => {
-            const vote = votes.find(v => v.aspirant_id === aspirant.id);
-            const voteCount = vote ? vote.count : 0;
+            // Lookup directly from votes object
+            const voteCount = votes[aspirant.id] ?? 0;
 
             if (!seatData[aspirant.seat]) {
                 seatData[aspirant.seat] = {
@@ -618,6 +625,7 @@ export default function AdminPortal() {
                     aspirants: 0
                 };
             }
+
             seatData[aspirant.seat].votes += voteCount;
             seatData[aspirant.seat].aspirants += 1;
         });
@@ -627,22 +635,19 @@ export default function AdminPortal() {
 
     const getTopAspirants = () => {
         return aspirants
-            .map(aspirant => {
-                const vote = votes.find(v => v.aspirant_id === aspirant.id);
-                return {
-                    ...aspirant,
-                    votes: vote ? vote.count : 0
-                };
-            })
+            .map(aspirant => ({
+                ...aspirant,
+                votes: votes[aspirant.id] ?? 0
+            }))
             .sort((a, b) => b.votes - a.votes)
             .slice(0, 5);
     };
 
     const getPartyDistribution = () => {
         const partyData = {};
+
         aspirants.forEach(aspirant => {
-            const vote = votes.find(v => v.aspirant_id === aspirant.id);
-            const voteCount = vote ? vote.count : 0;
+            const voteCount = votes[aspirant.id] ?? 0;
 
             if (!partyData[aspirant.party]) {
                 partyData[aspirant.party] = {
@@ -651,11 +656,14 @@ export default function AdminPortal() {
                     aspirants: 0
                 };
             }
+
             partyData[aspirant.party].votes += voteCount;
             partyData[aspirant.party].aspirants += 1;
         });
 
-        return Object.values(partyData).slice(0, 5);
+        return Object.values(partyData)
+            .sort((a, b) => b.votes - a.votes)
+            .slice(0, 5);
     };
 
     // Filter aspirants
@@ -994,8 +1002,7 @@ export default function AdminPortal() {
                                         </thead>
                                         <tbody className="divide-y divide-gray-200">
                                             {filteredAspirants.map(aspirant => {
-                                                const vote = votes.find(v => v.aspirant_id === aspirant.id);
-                                                const voteCount = vote ? vote.count : 0;
+                                                const voteCount = votes[aspirant.id] ?? 0;
 
                                                 return (
                                                     <tr key={aspirant.id} className="hover:bg-gray-50 transition-colors">
@@ -1033,11 +1040,13 @@ export default function AdminPortal() {
                                                         </td>
                                                         <td className="px-6 py-4">
                                                             <div className="space-y-1">
-                                                                <p className="text-lg font-bold text-gray-900">{voteCount.toLocaleString()}</p>
+                                                                <p className="text-lg font-bold text-gray-900">
+                                                                    {(voteCount ?? 0).toLocaleString()}
+                                                                </p>
                                                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                                                     <div
                                                                         className="bg-blue-600 h-2 rounded-full transition-all duration-1000"
-                                                                        style={{ width: `${Math.min(100, (voteCount / Math.max(1, ...votes.map(v => v.count))) * 100)}%` }}
+                                                                        style={{ width: `${Math.min(100, (voteCount / Math.max(1, ...Object.values(votes))) * 100)}%` }}
                                                                     ></div>
                                                                 </div>
                                                             </div>
