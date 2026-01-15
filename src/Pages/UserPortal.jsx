@@ -31,10 +31,9 @@ export default function UserPortal() {
     const [userVotedSeats, setUserVotedSeats] = useState({});
     const [activeTab, setActiveTab] = useState('Presidential');
     const [votingStatus, setVotingStatus] = useState({ loading: false, message: '', type: '' });
-    const [showResults, setShowResults] = useState(true);
-    const [chartType, setChartType] = useState('bar'); // 'bar', 'area', 'radar'
+    const [chartType, setChartType] = useState('bar');
 
-    // 1. Auth Initialization
+    //  Auth 
     useEffect(() => {
         const getSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -53,7 +52,7 @@ export default function UserPortal() {
         return () => subscription.unsubscribe();
     }, []);
 
-    // 2. Data Fetching (Aspirants, Profile, Votes)
+    //fetch data
     useEffect(() => {
         if (!user) return;
 
@@ -116,11 +115,10 @@ export default function UserPortal() {
 
         fetchData();
 
-        // Set up Realtime subscriptions - Listen to 'user_votes' inserts
+        // Set up Realtime subscription
         const votesSubscription = supabase
             .channel('public:user_votes')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_votes' }, (payload) => {
-                // Ignore our own vote updates since we handle them optimistically
                 if (payload.new.user_id === user.id) return;
 
                 setVotes(prev => ({
@@ -208,7 +206,6 @@ export default function UserPortal() {
         });
     }, [aspirants, activeTab, profile]);
 
-    // Prepare comprehensive chart data for current seat
     const chartData = useMemo(() => {
         return filteredAspirants.map(aspirant => {
             const voteCount = votes[aspirant.id] || 0;
@@ -228,7 +225,7 @@ export default function UserPortal() {
                 votes: voteCount,
                 party: party,
                 color: color,
-                percentage: 0, // Will be calculated below
+                percentage: 0,
                 isUserVote: userVotedSeats[aspirant.seat] === aspirant.id
             };
         })
@@ -243,7 +240,7 @@ export default function UserPortal() {
             });
     }, [filteredAspirants, votes, userVotedSeats]);
 
-    // Prepare trend data (simulated for demo)
+    // Prepare trend data
     const trendData = useMemo(() => {
         return chartData.map(item => ({
             name: item.shortName,
@@ -254,7 +251,7 @@ export default function UserPortal() {
         }));
     }, [chartData]);
 
-    // Prepare radar chart data (for candidate comparison)
+    // Prepare radar chart data
     const radarData = useMemo(() => {
         const maxVotes = Math.max(...chartData.map(d => d.votes), 1);
         return chartData.map(item => ({

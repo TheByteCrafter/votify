@@ -17,6 +17,20 @@ export default function RegisterVoter() {
         ward: ''
     });
 
+
+
+    const counties = [
+        "Baringo", "Bomet", "Bungoma", "Busia", "Elgeyo-Marakwet", "Embu",
+        "Garissa", "Homa Bay", "Isiolo", "Kajiado", "Kakamega", "Kericho",
+        "Kiambu", "Kilifi", "Kirinyaga", "Kisii", "Kisumu", "Kitui",
+        "Kwale", "Laikipia", "Lamu", "Machakos", "Makueni", "Mandera",
+        "Marsabit", "Meru", "Migori", "Mombasa", "Murang’a", "Nairobi",
+        "Nakuru", "Nandi", "Narok", "Nyamira", "Nyandarua", "Nyeri",
+        "Samburu", "Siaya", "Taita-Taveta", "Tana River", "Tharaka-Nithi",
+        "Trans Nzoia", "Turkana", "Uasin Gishu", "Vihiga", "Wajir",
+        "West Pokot"
+    ];
+
     const handleRegister = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -139,9 +153,12 @@ export default function RegisterVoter() {
                                         onChange={(e) => setFormData({ ...formData, county: e.target.value })}
                                     >
                                         <option value="">Select County</option>
-                                        <option value="Nairobi">Nairobi</option>
-                                        <option value="Mombasa">Mombasa</option>
-                                        <option value="Kiambu">Kiambu</option>
+                                        {counties.map((county) => (
+                                            <option key={county} value={county}>
+                                                {county}
+                                            </option>
+                                        ))}
+
                                     </select>
                                 </div>
                             </div>
