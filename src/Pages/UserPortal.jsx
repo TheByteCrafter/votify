@@ -32,8 +32,7 @@ export default function UserPortal() {
     const [activeTab, setActiveTab] = useState('Presidential');
     const [votingStatus, setVotingStatus] = useState({ loading: false, message: '', type: '' });
     const [chartType, setChartType] = useState('bar');
-
-    //  Auth 
+ 
     useEffect(() => {
         const getSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -52,12 +51,12 @@ export default function UserPortal() {
         return () => subscription.unsubscribe();
     }, []);
 
-    //fetch data
+
     useEffect(() => {
         if (!user) return;
 
         const fetchData = async () => {
-            // Fetch User Profile
+        
             const { data: profileData } = await supabase
                 .from('profiles')
                 .select('*')
