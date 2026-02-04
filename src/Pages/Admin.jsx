@@ -33,6 +33,7 @@ import {
     UserCog,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import VoterManagement from '../Components/VoterManagement';
 
 export default function AdminPortal() {
     const navigate = useNavigate();
@@ -219,119 +220,7 @@ export default function AdminPortal() {
         }
     };
 
-    const estimateVotingPattern = async () => {
-        // Get all votes to analyze pattern
-        const { data: allVotes } = await supabase.rpc('get_vote_counts');
-
-        if (!allVotes || allVotes.length === 0) {
-            return generateTrendsFromTotalVotes(stats.totalVotes);
-        }
-
-        // Calculate total votes
-        const totalVotes = allVotes.reduce((sum, vote) => sum + (vote.count || 0), 0);
-
-        // Create time-based distribution
-        const now = new Date();
-        const hourlyDistribution = {};
-
-        // Initialize distribution
-        const hourLabels = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '23:59'];
-        hourLabels.forEach(label => {
-            hourlyDistribution[label] = 0;
-        });
-
-        // Distribute votes based on update time
-        allVotes.forEach((vote, index) => {
-            const updateTime = new Date(vote.updated_at);
-            const hour = updateTime.getHours();
-
-            // Map to nearest display hour
-            let displayHour;
-            if (hour < 4) displayHour = '00:00';
-            else if (hour < 8) displayHour = '04:00';
-            else if (hour < 12) displayHour = '08:00';
-            else if (hour < 16) displayHour = '12:00';
-            else if (hour < 20) displayHour = '16:00';
-            else if (hour < 24) displayHour = '20:00';
-            else displayHour = '23:59';
-
-            // Distribute proportionally based on position in array
-            const proportion = (index + 1) / allVotes.length;
-            hourlyDistribution[displayHour] += Math.round(vote.count * proportion);
-        });
-
-        // Make cumulative
-        let cumulative = 0;
-        const trends = hourLabels.map(label => {
-            cumulative += hourlyDistribution[label];
-            return {
-                hour: label,
-                votes: Math.min(Math.round(cumulative), totalVotes)
-            };
-        });
-
-        return trends;
-    };
-
-    // Helper function to group votes by hour
-    const groupVotesByHour = (votesData) => {
-        const grouped = {};
-
-        votesData.forEach(vote => {
-            const date = new Date(vote.created_at);
-            const hour = date.getHours();
-            const hourLabel = `${hour.toString().padStart(2, '0')}:00`;
-
-            if (!grouped[hourLabel]) {
-                grouped[hourLabel] = {
-                    hour: hourLabel,
-                    votes: 0
-                };
-            }
-            grouped[hourLabel].votes += vote.count || 0;
-        });
-
-        // Fill in missing hours with 0 votes
-        const result = [];
-        for (let i = 0; i < 24; i++) {
-            const hourLabel = `${i.toString().padStart(2, '0')}:00`;
-            result.push(grouped[hourLabel] || { hour: hourLabel, votes: 0 });
-        }
-
-        return result;
-    };
-
-    // Generate realistic trending data based on total votes
-    const generateRealisticTrends = (totalVotes) => {
-        const trends = [];
-        const hours = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '23:59'];
-
-        let cumulativeVotes = 0;
-        const peakHours = [10, 11, 12, 13, 14, 15, 16];
-        const nightHours = [0, 1, 2, 3, 4, 5];
-
-        for (let hour = 0; hour < 24; hour++) {
-            const hourLabel = `${hour.toString().padStart(2, '0')}:00`;
-
-            let hourVotes;
-            if (peakHours.includes(hour)) {
-                hourVotes = Math.floor(totalVotes * 0.15 / peakHours.length);
-            } else if (nightHours.includes(hour)) {
-                hourVotes = Math.floor(totalVotes * 0.05 / nightHours.length);
-            } else {
-                hourVotes = Math.floor(totalVotes * 0.1 / (24 - peakHours.length - nightHours.length));
-            }
-
-            cumulativeVotes += hourVotes;
-
-            trends.push({
-                hour: hourLabel,
-                votes: cumulativeVotes
-            });
-        }
-
-        return trends;
-    };
+  
 
     // Fallback sample data generator
     const generateSampleTrendsData = () => {
@@ -431,8 +320,6 @@ export default function AdminPortal() {
                 }]);
 
             if (error) throw error;
-
-            // Initialize vote count for new aspirant
             const { data: newAspirant } = await supabase
                 .from('aspirants')
                 .select('id')
@@ -696,12 +583,12 @@ export default function AdminPortal() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30 flex">
+        <div className="min-h-screen bg-linear-to-br from-gray-50 to-blue-50/30 flex">
             {/* Left Navigation */}
             <div className="w-64 bg-white border-r border-gray-200 min-h-screen shadow-lg">
                 <div className="p-6 border-b border-gray-200">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-red-600 to-orange-600 text-white shadow-lg">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-red-600 to-orange-600 text-white shadow-lg">
                             <img
                                 src="https://upload.wikimedia.org/wikipedia/commons/4/49/Flag_of_Kenya.svg"
                                 alt="Kenya Logo"
@@ -723,7 +610,7 @@ export default function AdminPortal() {
                                 key={item.id}
                                 onClick={() => setActiveTab(item.id)}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === item.id
-                                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
+                                    ? 'bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
                                     : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
                                     }`}
                             >
@@ -750,7 +637,6 @@ export default function AdminPortal() {
                 </div>
             </div>
 
-            {/* Main Content */}
             <div className="flex-1">
                 <main className="p-8">
                     {/* Header */}
@@ -1270,41 +1156,7 @@ export default function AdminPortal() {
 
                     {/* Voters Tab */}
                     {activeTab === 'voters' && (
-                        <div className="space-y-6">
-                            <div className="rounded-2xl bg-white p-6 border border-gray-200 shadow-lg">
-                                <h3 className="text-lg font-bold text-gray-900 mb-6">Registered Voters ({profiles.length})</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {profiles.map(profile => (
-                                        <div key={profile.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
-                                            <div className="flex items-start justify-between mb-3">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold">
-                                                        {profile.full_name.charAt(0)}
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-bold text-gray-900">{profile.full_name}</p>
-                                                        <p className="text-sm text-gray-500">ID: {profile.id_number}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2 text-sm">
-                                                <div className="flex items-center gap-2">
-                                                    <MapPin size={12} className="text-gray-400" />
-                                                    <span>{profile.county}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Home size={12} className="text-gray-400" />
-                                                    <span>{profile.constituency}</span>
-                                                </div>
-                                                <div className="text-xs text-gray-500 mt-2">
-                                                    Registered: {new Date(profile.created_at).toLocaleDateString()}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
+                        <VoterManagement />
                     )}
 
                     {/* Analytics Tab */}
