@@ -10,8 +10,6 @@ export default function LandingPage() {
 
     const handleLogin = (e) => {
         e.preventDefault();
-        // Logic for authentication goes here
-
         const { data, error } = supabase.auth.signInWithPassword({
             email: email,
             password: password
@@ -31,7 +29,7 @@ export default function LandingPage() {
                 {/* Branding */}
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-black text-white italic tracking-tighter">
-                        IEBC EMS <span className="text-emerald-500 not-italic text-2xl">v3</span>
+                        VOTIFY EMS <span className="text-emerald-500 not-italic text-2xl">v3</span>
                     </h1>
                     <p className="text-slate-400 mt-2 font-bold uppercase tracking-widest text-xs">
                         Electronic Management System
@@ -80,19 +78,7 @@ export default function LandingPage() {
                             SIGN IN TO PORTAL <ArrowRight size={18} />
                         </button>
                     </form>
-
-                    {/* Navigation Links */}
                     <div className="mt-8 pt-6 border-t border-slate-100 space-y-4 text-center">
-                        <p className="text-sm text-slate-500 font-medium">
-                            New voter? {' '}
-                            <button
-                                onClick={() => navigate('/voter')}
-                                className="text-emerald-600 font-bold hover:underline"
-                            >
-                                Create Account
-                            </button>
-                        </p>
-
                         <button
                             onClick={() => navigate('/admin')}
                             className="text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors"
@@ -103,7 +89,7 @@ export default function LandingPage() {
                 </div>
 
                 <p className="text-center text-slate-500 text-[10px] mt-8 font-medium">
-                    Official IEBC Electoral Management System &copy; 2026
+                    Official Votify Electoral Management System &copy; 2026
                 </p>
             </div>
         </div>

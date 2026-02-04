@@ -6,7 +6,6 @@ import React from "react";
 const AdminSettings = () => {
 
     const [isSystemActive, setIsSystemActive] = React.useState(null);
-
     React.useEffect(() => {
         const fetchSystemStatus = async () => {
             const { data, error } = await supabase
@@ -25,12 +24,18 @@ const AdminSettings = () => {
     }, []);
 
     const updateSystemStatus = async (newStatus) => {
+
+        alert('System Active status changed to: ' + newStatus);
         const { error } = await supabase
             .from('System')
             .update({ ISSystemActive: newStatus })
             .eq('id', 1);
         if (error) {
+            alert('Failed to update system status: ' + error.message);
             console.error('Failed to update system status:', error.message);
+        }else{
+            console.log('System status updated successfully');
+            alert('System status updated successfully');
         }
     };
 
@@ -43,7 +48,6 @@ const AdminSettings = () => {
                         <h4 className="font-bold text-gray-900 mb-2">Voting Configuration</h4>
                         <p className="text-sm text-gray-600 mb-3">Configure voting system parameters</p>
                         <div className="space-y-3">
-                            {/* switch to toggle ISSystemActive for supabase */}
                             <label className="flex items-center cursor-pointer">
                                 <span className="text-sm font-medium text-red-700 mr-3">System Active</span>
                                 <div className="relative">

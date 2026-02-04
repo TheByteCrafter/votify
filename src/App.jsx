@@ -66,7 +66,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={isSystemActive ? <LandingPage /> : <SystemLocked />} />
-        <Route path="/voter" element={isSystemActive ? <RegisterVoter /> : <Navigate to="/" />} />
+        
         <Route path="/user" element={isSystemActive ? <UserPortal /> : <Navigate to="/" />} />
         <Route path="/aspirant" element={isSystemActive ? <AspirantRegistration /> : <Navigate to="/" />} />
         <Route path="/admin" element={!session ? <LoginPage /> : <Admin />} />

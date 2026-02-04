@@ -63,7 +63,7 @@ export default function RegisterVoter() {
             return;
         }
 
-        // Sign up user
+   
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email: formData.email,
             password: formData.password,
