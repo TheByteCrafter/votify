@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './Pages/LandingPage';
 import Admin from './Pages/Admin';
 import UserPortal from './Pages/UserPortal';
@@ -46,12 +46,10 @@ function App() {
   return (
     <Router>
       <Routes>
-       
         <Route path="/" element={isSystemActive ? <LandingPage /> : <SystemLocked />} />
-        
-     
         <Route path="/voter" element={isSystemActive ? <RegisterVoter /> : <Navigate to="/" />} />
         <Route path="/user" element={isSystemActive ? <UserPortal /> : <Navigate to="/" />} />
+        <Route path="/aspirant" element={isSystemActive ? <AspirantRegistration /> : <Navigate to="/" />} />
         <Route path="/admin" element={!session ? <LoginPage /> : <Admin />} />
         <Route path="/login" element={<LoginPage />} />
       </Routes>
