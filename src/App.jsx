@@ -41,6 +41,25 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const systemStatusSubscription = supabase
+      .channel('public:System')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'System' },
+        (payload) => {
+          if (payload.new && 'ISSystemActive' in payload.new) {
+            setIsSystemActive(payload.new.ISSystemActive);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(systemStatusSubscription);
+    };
+  }, []);
+
   if (isSystemActive === null) return <div>Loading...</div>;
 
   return (
