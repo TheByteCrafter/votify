@@ -32,7 +32,7 @@ export default function UserPortal() {
     const [activeTab, setActiveTab] = useState('Presidential');
     const [votingStatus, setVotingStatus] = useState({ loading: false, message: '', type: '' });
     const [chartType, setChartType] = useState('bar');
- 
+
     useEffect(() => {
         const getSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -56,7 +56,7 @@ export default function UserPortal() {
         if (!user) return;
 
         const fetchData = async () => {
-        
+
             const { data: profileData } = await supabase
                 .from('profiles')
                 .select('*')
@@ -184,7 +184,7 @@ export default function UserPortal() {
         if (!profile) return [];
 
         return aspirants.filter(a => {
-         
+
             if (a.seat !== activeTab) return false;
             switch (a.seat) {
                 case 'Presidential':
@@ -509,7 +509,6 @@ export default function UserPortal() {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* Main Chart */}
                         <div className="lg:col-span-2 rounded-2xl bg-white p-6 border border-gray-200 shadow-2xl">
                             <div className="flex items-center justify-between mb-6">
                                 <div>
@@ -596,7 +595,7 @@ export default function UserPortal() {
                             </div>
                         </div>
 
-                        {/* Party Distribution Chart */}
+                        
                         <div className="rounded-2xl bg-white p-6 border border-gray-200 shadow-2xl">
                             <h4 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
                                 <PieChartIcon className="h-5 w-5 text-purple-600" />
@@ -640,7 +639,7 @@ export default function UserPortal() {
                                 </ResponsiveContainer>
                             </div>
 
-                            {/* Legend */}
+                          
                             <div className="space-y-2">
                                 {chartData.map((item, index) => (
                                     <div key={index} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg transition-colors">
@@ -661,8 +660,6 @@ export default function UserPortal() {
                         </div>
                     </div>
                 </div>
-
-                {/* Position Selection */}
                 <div className="mb-8">
                     <h3 className="text-2xl font-bold text-gray-900 mb-6">Select Position to Vote</h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
@@ -671,7 +668,7 @@ export default function UserPortal() {
                                 key={seat}
                                 onClick={() => setActiveTab(seat)}
                                 className={`relative p-4 rounded-xl text-left transition-all duration-300 transform hover:scale-[1.02] ${activeTab === seat
-                                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-2xl ring-2 ring-blue-500 ring-offset-2'
+                                    ? 'bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-2xl ring-2 ring-blue-500 ring-offset-2'
                                     : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 shadow-lg hover:shadow-xl'
                                     }`}
                             >
@@ -688,8 +685,6 @@ export default function UserPortal() {
                         ))}
                     </div>
                 </div>
-
-                {/* Candidates Grid */}
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {filteredAspirants.length > 0 ? (
                         filteredAspirants.map(aspirant => {
@@ -702,11 +697,10 @@ export default function UserPortal() {
                                 <div
                                     key={aspirant.id}
                                     className={`group relative flex flex-col rounded-2xl border-2 transition-all duration-300 hover:shadow-2xl ${isVotedByMe
-                                        ? 'border-green-500 bg-gradient-to-br from-green-50 to-emerald-50 shadow-xl'
+                                        ? 'border-green-500 bg-linear-to-br from-green-50 to-emerald-50 shadow-xl'
                                         : 'border-gray-200 bg-white hover:border-blue-400 hover:shadow-xl'
                                         }`}
                                 >
-                                    {/* Candidate Rank Badge */}
                                     {chartData.findIndex(d => d.name === aspirant.name) < 3 && (
                                         <div className="absolute -top-3 -left-3 z-10">
                                             <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white font-black text-lg shadow-2xl ${chartData.findIndex(d => d.name === aspirant.name) === 0 ? 'bg-gradient-to-r from-yellow-500 to-amber-500' :
@@ -718,10 +712,10 @@ export default function UserPortal() {
                                         </div>
                                     )}
 
-                                    {/* Your Vote Badge */}
+                            
                                     {isVotedByMe && (
                                         <div className="absolute -top-4 -right-4 z-10">
-                                            <div className="rounded-full bg-gradient-to-r from-green-500 to-emerald-600 p-3 text-white shadow-2xl animate-bounce">
+                                            <div className="rounded-full bg-linear-to-r from-green-500 to-emerald-600 p-3 text-white shadow-2xl animate-bounce">
                                                 <CheckCircle size={24} />
                                             </div>
                                         </div>
@@ -734,7 +728,7 @@ export default function UserPortal() {
                                             </div>
                                             <div className="flex-1">
                                                 <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-700">{aspirant.name}</h3>
-                                                <div className="inline-block rounded-full bg-gradient-to-r from-blue-100 to-blue-50 px-4 py-1.5 mt-2">
+                                                <div className="inline-block rounded-full bg-linear-to-r from-blue-100 to-blue-50 px-4 py-1.5 mt-2">
                                                     <p className="text-sm font-black text-blue-700">{aspirant.party}</p>
                                                 </div>
                                             </div>

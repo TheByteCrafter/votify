@@ -59,7 +59,6 @@ export default function AdminPortal() {
     });
     const [isSystemActive, setIsSystemActive] = useState(null);
 
-    // Form state
     const [formData, setFormData] = useState({
         name: '',
         party: '',

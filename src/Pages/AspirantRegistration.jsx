@@ -190,7 +190,7 @@ export default function AspirantRegistration() {
                     </div>
                 </div>
 
-                {/* Status Message */}
+               
                 {status.message && (
                     <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${status.type === 'error'
                         ? 'bg-red-50 text-red-700 border border-red-100'
@@ -201,7 +201,7 @@ export default function AspirantRegistration() {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-8">
-                    {/* Step 1: Personal Information */}
+          
                     {step === 1 && (
                         <div className="rounded-2xl bg-white p-8 border border-gray-200 shadow-lg">
                             <h2 className="text-2xl font-bold text-gray-900 mb-2">Personal Information</h2>
@@ -270,7 +270,6 @@ export default function AspirantRegistration() {
                         </div>
                     )}
 
-                    {/* Step 2: Political Information */}
                     {step === 2 && (
                         <div className="rounded-2xl bg-white p-8 border border-gray-200 shadow-lg">
                             <h2 className="text-2xl font-bold text-gray-900 mb-2">Political Information</h2>
@@ -350,7 +349,7 @@ export default function AspirantRegistration() {
                         </div>
                     )}
 
-                    {/* Step 3: Document Upload */}
+                    
                     {step === 3 && (
                         <div className="rounded-2xl bg-white p-8 border border-gray-200 shadow-lg">
                             <h2 className="text-2xl font-bold text-gray-900 mb-2">Document Upload</h2>
@@ -454,7 +453,6 @@ export default function AspirantRegistration() {
                     )}
                 </form>
 
-                {/* Information Box */}
                 <div className="mt-8 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border border-blue-200">
                     <div className="flex items-start gap-4">
                         <Shield className="h-6 w-6 text-blue-600 mt-1" />

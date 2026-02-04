@@ -38,7 +38,7 @@ const LoginPage = () => {
       </div>
 
       <div className="w-full max-w-105 bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col relative z-10">
-        {/* Brand Header */}
+      
         <div className="pt-12 pb-8 px-8 text-center bg-white">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-900 rounded-[1.8rem] mb-6 shadow-xl shadow-blue-500/10 transform -rotate-2">
             <Vote className="w-10 h-10 text-white" />

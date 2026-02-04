@@ -1,6 +1,6 @@
 
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, ShieldCheck, LogOut } from 'lucide-react'; // Icons
+import { LayoutDashboard, Users, ShieldCheck, LogOut } from 'lucide-react';
 
 const Sidebar = ({ userRole = 'public' }) => {
     return (
@@ -11,10 +11,8 @@ const Sidebar = ({ userRole = 'public' }) => {
             </div>
 
             <nav className="flex-1 py-6 space-y-1">
-                {/* Everyone sees Overview */}
+            
                 <SidebarLink to="/" icon={<LayoutDashboard size={18} />} label="Live Tally" />
-
-                {/* Only Admins see these */}
                 {userRole === 'admin' && (
                     <>
                         <div className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Administration</div>
@@ -33,7 +31,6 @@ const Sidebar = ({ userRole = 'public' }) => {
     );
 };
 
-// Small helper component for links
 function SidebarLink({ to, icon, label }) {
     return (
         <NavLink

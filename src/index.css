@@ -10,3 +10,20 @@ body {
 #root {
   font-family: 'Roboto', sans-serif;
 }
+@keyframes wave {
+  0%, 40%, 100% {
+    transform: scaleY(0.4);
+  }
+  20% {
+    transform: scaleY(1);
+  }
+}
+
+.animate-wave {
+  animation: wave 1s infinite ease-in-out;
+}
+.delay-0 { animation-delay: 0s; }
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }

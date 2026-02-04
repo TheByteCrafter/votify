@@ -26,7 +26,7 @@ export default function LandingPage() {
         <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
             <div className="w-full max-w-md">
 
-                {/* Branding */}
+              
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-black text-white italic tracking-tighter">
                         VOTIFY EMS <span className="text-emerald-500 not-italic text-2xl">v3</span>
@@ -36,7 +36,7 @@ export default function LandingPage() {
                     </p>
                 </div>
 
-                {/* Main Login Card */}
+               
                 <div className="bg-white rounded-3xl p-8 shadow-2xl">
                     <h2 className="text-2xl font-black text-slate-800 mb-6">Voter Login</h2>
 
