@@ -48,7 +48,7 @@ const LoginPage = () => {
         </div>
 
         <div className="px-10 pb-12">
-          {/* Authorization Notice */}
+          
           <div className="mb-8 p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-center gap-3">
             <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
             <p className="text-[10px] text-amber-800 font-bold uppercase tracking-tight leading-tight">
@@ -73,7 +73,7 @@ const LoginPage = () => {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 text-slate-500">Secure Passphrase</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Secure Passphrase</label>
               <div className="relative group">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                 <input
@@ -105,7 +105,7 @@ const LoginPage = () => {
             </div>
           </form>
 
-          {/* Feedback Messages */}
+        
           {error && (
             <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 animate-in fade-in duration-300">
               <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />

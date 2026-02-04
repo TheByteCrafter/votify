@@ -184,10 +184,8 @@ export default function UserPortal() {
         if (!profile) return [];
 
         return aspirants.filter(a => {
-            // Basic Seat Filter
+         
             if (a.seat !== activeTab) return false;
-
-            // Geographical Filtering
             switch (a.seat) {
                 case 'Presidential':
                     return true;
@@ -290,7 +288,7 @@ export default function UserPortal() {
 
     if (loading) {
         return (
-            <div className="flex h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
+            <div className="flex h-screen items-center justify-center bg-linear-to-br from-blue-50 to-indigo-50">
                 <div className="text-center">
                     <div className="relative">
                         <div className="animate-spin rounded-full h-20 w-20 border-4 border-blue-200 border-t-blue-600 mx-auto"></div>
@@ -304,8 +302,8 @@ export default function UserPortal() {
 
     if (!user) {
         return (
-            <div className="flex h-screen flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-6 text-center">
-                <div className="mb-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 p-5 shadow-lg animate-bounce">
+            <div className="flex h-screen flex-col items-center justify-center bg-linear-to-br from-blue-50 to-indigo-50 p-6 text-center">
+                <div className="mb-6 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 p-5 shadow-lg animate-bounce">
                     <Shield className="h-16 w-16 text-white" />
                 </div>
                 <h1 className="mb-2 text-3xl font-bold text-gray-900">Secure Access Required</h1>
@@ -314,7 +312,7 @@ export default function UserPortal() {
                 </p>
                 <button
                     onClick={() => window.location.href = '/'}
-                    className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-10 py-4 font-bold text-white shadow-lg transition-all hover:shadow-xl hover:scale-105 active:scale-95"
+                    className="rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 px-10 py-4 font-bold text-white shadow-lg transition-all hover:shadow-xl hover:scale-105 active:scale-95"
                 >
                     Proceed to Authentication
                 </button>
@@ -323,7 +321,7 @@ export default function UserPortal() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-indigo-50/20 pb-12">
+        <div className="min-h-screen bg-linear-to-br from-gray-50 via-blue-50/20 to-indigo-50/20 pb-12">
             {/* Header */}
             <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-lg border-b border-gray-200/50 px-4 py-4 shadow-lg shadow-gray-200/20 sm:px-8">
                 <div className="mx-auto flex max-w-7xl items-center justify-between">
@@ -390,8 +388,8 @@ export default function UserPortal() {
                 {/* Alerts */}
                 {votingStatus.message && (
                     <div className={`mb-6 rounded-2xl p-5 shadow-xl animate-in fade-in slide-in-from-top-2 ${votingStatus.type === 'error' ? 'bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-red-500' :
-                        votingStatus.type === 'success' ? 'bg-gradient-to-r from-green-50 to-emerald-100 border-l-4 border-green-500' :
-                            'bg-gradient-to-r from-blue-50 to-cyan-100 border-l-4 border-blue-500'
+                        votingStatus.type === 'success' ? 'bg-linear-to-r from-green-50 to-emerald-100 border-l-4 border-green-500' :
+                            'bg-linear-to-r from-blue-50 to-cyan-100 border-l-4 border-blue-500'
                         }`}>
                         <div className="flex items-center gap-4">
                             <div className={`p-2 rounded-full ${votingStatus.type === 'error' ? 'bg-red-100' : votingStatus.type === 'success' ? 'bg-green-100' : 'bg-blue-100'}`}>

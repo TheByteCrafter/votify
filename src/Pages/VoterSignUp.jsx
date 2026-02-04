@@ -49,15 +49,14 @@ export default function RegisterVoter() {
         }
 
         if (!profiles || profiles.length === 0) {
-            // No match found
+           
             console.log("No existing profile found, safe to proceed.");
         } else if (profiles.length === 1) {
-            // Exactly one match
+           
             alert("User already exists in profiles");
             setLoading(false);
             return;
         } else {
-            // More than one match
             console.warn("Multiple profiles found with same ID/phone!");
             alert("User already exists in profiles");
             setLoading(false);
@@ -89,7 +88,7 @@ export default function RegisterVoter() {
 
         if (signUpData?.user) {
             await supabase.from('profiles').insert({
-                id: signUpData.user.id, // link to auth user
+                id: signUpData.user.id, 
                 full_name: formData.fullName,
                 id_number: formData.idNumber,
                 phone_number: formData.phoneNumber,
@@ -120,7 +119,7 @@ export default function RegisterVoter() {
 
                     <form onSubmit={handleRegister} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
 
-                        {/* Account Credentials */}
+                      
                         <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-slate-100">
                             <InputGroup icon={<Mail size={18} />} label="Email Address" type="email" placeholder="voter@example.com"
                                 onChange={val => setFormData({ ...formData, email: val })} />
@@ -129,7 +128,7 @@ export default function RegisterVoter() {
                                 onChange={val => setFormData({ ...formData, password: val })} />
                         </div>
 
-                        {/* Personal Info */}
+                   
                         <div className="space-y-6">
                             <InputGroup icon={<User size={18} />} label="Full Name" placeholder="As per National ID"
                                 onChange={val => setFormData({ ...formData, fullName: val })} />

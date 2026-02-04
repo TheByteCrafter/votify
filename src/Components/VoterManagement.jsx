@@ -209,7 +209,7 @@ const VoterManagement = () => {
     const temporaryPassword = `Voter@${formData.id_number.slice(-4)}`;
 
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: `${formData.id_number}@voter.registry`, // Using ID number as unique identifier
+      email: `${formData.id_number}@voter.registry`,
       password: temporaryPassword,
       options: {
         data: {
@@ -222,9 +222,9 @@ const VoterManagement = () => {
     });
 
     if (authError) {
-      // Handle specific auth errors
+      
       if (authError.message.includes('User already registered')) {
-        // Check if user exists but doesn't have a profile
+     
         const { data: existingUser } = await supabase.auth.signInWithPassword({
           email: `${formData.id_number}@voter.registry`,
           password: temporaryPassword
@@ -234,10 +234,10 @@ const VoterManagement = () => {
           throw new Error('User already exists but cannot be accessed. Please contact administrator.');
         }
         
-        // Use existing user's ID
+   
         const userId = existingUser.user.id;
         
-        // Check if profile already exists for this user
+      
         const { data: existingProfile } = await supabase
           .from('profiles')
           .select('id')
@@ -248,7 +248,7 @@ const VoterManagement = () => {
           throw new Error('Profile already exists for this user');
         }
 
-        // Insert profile with existing user ID
+        
         const { error: profileError } = await supabase
           .from('profiles')
           .insert([{
@@ -289,11 +289,11 @@ const VoterManagement = () => {
       throw new Error('User creation failed - no user data returned');
     }
 
-    // Step 2: Insert profile data with the same UUID from auth
+    
     const { error: profileError } = await supabase
       .from('profiles')
       .insert([{
-        id: authData.user.id, // Use the UUID from auth
+        id: authData.user.id,
         full_name: formData.full_name.trim(),
         id_number: formData.id_number.trim(),
         phone_number: formData.phone_number.trim(),
@@ -304,11 +304,11 @@ const VoterManagement = () => {
       }]);
 
     if (profileError) {
-      // If profile creation fails, we should clean up the auth user
+     
       await supabase.auth.admin.deleteUser(authData.user.id);
       
-      // Handle specific Supabase errors
-      if (profileError.code === '23505') { // Unique violation
+    
+      if (profileError.code === '23505') { 
         if (profileError.message.includes('id_number')) {
           throw new Error(`ID number ${formData.id_number} already exists in database`);
         } else if (profileError.message.includes('phone_number')) {
@@ -354,7 +354,7 @@ const VoterManagement = () => {
       [field]: value
     }));
     
-    // Clear validation error for this field when user starts typing
+ 
     if (validationErrors[field]) {
       setValidationErrors(prev => ({
         ...prev,
@@ -365,7 +365,7 @@ const VoterManagement = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-6">
-      {/* Header Actions */}
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
         <div>
           <h3 className="text-2xl font-black text-slate-900 tracking-tight">Voter Registry</h3>
@@ -403,7 +403,6 @@ const VoterManagement = () => {
         </div>
       </div>
 
-      {/* Error Notification */}
       {error && (
         <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3 text-red-700 animate-in fade-in slide-in-from-top-2">
           <AlertCircle size={20} className="shrink-0 mt-0.5" />
@@ -420,7 +419,6 @@ const VoterManagement = () => {
         </div>
       )}
 
-      {/* Success Notification */}
       {success && (
         <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3 text-emerald-700 animate-in fade-in slide-in-from-top-2">
           <CheckCircle size={20} className="shrink-0 mt-0.5" />
@@ -457,7 +455,7 @@ const VoterManagement = () => {
               </div>
 
               <div className="flex items-start gap-4 mb-6">
-                <div className="h-14 w-14 shrink-0 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center text-slate-400 font-black text-xl border border-slate-200 group-hover:from-blue-50 group-hover:to-blue-100 group-hover:text-blue-600 group-hover:border-blue-200 transition-all">
+                <div className="h-14 w-14 shrink-0 rounded-2xl bg-linear-to-br from-slate-50 to-slate-100 flex items-center justify-center text-slate-400 font-black text-xl border border-slate-200 group-hover:from-blue-50 group-hover:to-blue-100 group-hover:text-blue-600 group-hover:border-blue-200 transition-all">
                   {profile.full_name?.charAt(0) || 'V'}
                 </div>
                 <div className="pr-8">
