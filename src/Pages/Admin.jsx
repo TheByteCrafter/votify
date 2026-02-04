@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import VoterManagement from '../Components/VoterManagement';
+import AdminSettings from '../Components/AdminSettings';
 
 export default function AdminPortal() {
     const navigate = useNavigate();
@@ -56,6 +57,7 @@ export default function AdminPortal() {
         approvedRegistrations: 0,
         rejectedRegistrations: 0
     });
+    const [isSystemActive, setIsSystemActive] = useState(null);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -220,7 +222,7 @@ export default function AdminPortal() {
         }
     };
 
-  
+
 
     // Fallback sample data generator
     const generateSampleTrendsData = () => {
@@ -1329,54 +1331,8 @@ export default function AdminPortal() {
 
                     {/* Settings Tab */}
                     {activeTab === 'settings' && (
-                        <div className="space-y-6">
-                            <div className="rounded-2xl bg-white p-6 border border-gray-200 shadow-lg">
-                                <h3 className="text-lg font-bold text-gray-900 mb-6">System Settings</h3>
-                                <div className="space-y-4">
-                                    <div className="p-4 border border-gray-200 rounded-xl">
-                                        <h4 className="font-bold text-gray-900 mb-2">Voting Configuration</h4>
-                                        <p className="text-sm text-gray-600 mb-3">Configure voting system parameters</p>
-                                        <div className="space-y-3">
-                                            <label className="flex items-center gap-2">
-                                                <input type="checkbox" className="rounded text-blue-600" defaultChecked />
-                                                <span className="text-sm font-medium">Allow Multiple Votes per Position</span>
-                                            </label>
-                                            <label className="flex items-center gap-2">
-                                                <input type="checkbox" className="rounded text-blue-600" />
-                                                <span className="text-sm font-medium">Enable Vote Confirmation Emails</span>
-                                            </label>
-                                            <label className="flex items-center gap-2">
-                                                <input type="checkbox" className="rounded text-blue-600" defaultChecked />
-                                                <span className="text-sm font-medium">Show Live Vote Counts</span>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <div className="p-4 border border-gray-200 rounded-xl">
-                                        <h4 className="font-bold text-gray-900 mb-2">Registration Settings</h4>
-                                        <p className="text-sm text-gray-600 mb-3">Configure aspirant registration requirements</p>
-                                        <div className="space-y-3">
-                                            <label className="block">
-                                                <span className="text-sm font-medium text-gray-700">Required Documents</span>
-                                                <select className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl">
-                                                    <option>ID + Party Certificate</option>
-                                                    <option>ID Only</option>
-                                                    <option>All Documents Required</option>
-                                                </select>
-                                            </label>
-                                            <label className="block">
-                                                <span className="text-sm font-medium text-gray-700">Registration Deadline</span>
-                                                <input type="date" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl" />
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-bold hover:shadow-lg transition-all">
-                                        Save Settings
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                        <AdminSettings />
+                        
                     )}
                 </main>
             </div>
