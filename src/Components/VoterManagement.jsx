@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  UserPlus, 
-  Trash2, 
-  MapPin, 
-  Search, 
-  User, 
-  IdCard, 
+import {
+  UserPlus,
+  Trash2,
+  MapPin,
+  Search,
+  User,
+  IdCard,
   X,
   AlertCircle,
   Loader2,
   Phone,
+  Mail,
   Layers,
   RefreshCw,
   CheckCircle,
@@ -24,12 +25,13 @@ const VoterManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [validationErrors, setValidationErrors] = useState({});
 
-  // Form State
+  const [modalValidationErrors, setModalValidationErrors] = useState({});
+
   const [formData, setFormData] = useState({
     full_name: '',
     id_number: '',
+    email: '',
     phone_number: '',
     county: '',
     constituency: '',
@@ -79,8 +81,7 @@ const VoterManagement = () => {
   // Validation functions
   const validateForm = () => {
     const errors = {};
-    
-    // Name validation
+
     if (!formData.full_name.trim()) {
       errors.full_name = 'Full name is required';
     } else if (formData.full_name.trim().length < 2) {
@@ -93,29 +94,39 @@ const VoterManagement = () => {
       errors.id_number = 'Invalid ID number format (7-8 digits)';
     }
 
+    if (!formData.email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      errors.email = 'Invalid email address';
+    }
+
     if (!formData.phone_number.trim()) {
       errors.phone_number = 'Phone number is required';
     } else if (!/^(\+254|0)[17]\d{8}$/.test(formData.phone_number.trim())) {
       errors.phone_number = 'Invalid Kenyan phone number';
     }
 
-    // Check for duplicate ID number
-    const duplicateId = profiles.find(p => 
+    const duplicateId = profiles.find(p =>
       p.id_number === formData.id_number.trim()
     );
     if (duplicateId) {
       errors.id_number = `ID number ${formData.id_number} already registered.`;
     }
 
-    // Check for duplicate phone number
-    const duplicatePhone = profiles.find(p => 
+    const duplicatePhone = profiles.find(p =>
       p.phone_number === formData.phone_number.trim()
     );
     if (duplicatePhone) {
       errors.phone_number = `Phone number already registered.`;
     }
 
-    // Location validation
+    const duplicateEmail = profiles.find(p =>
+      p.email === formData.email.trim()
+    );
+    if (duplicateEmail) {
+      errors.email = `Email already registered.`;
+    }
+
     if (!formData.county.trim()) errors.county = 'County is required';
     if (!formData.constituency.trim()) errors.constituency = 'Constituency is required';
     if (!formData.ward.trim()) errors.ward = 'Ward is required';
@@ -123,16 +134,18 @@ const VoterManagement = () => {
     return errors;
   };
 
-  // Clear validation errors when modal closes
+  // Clear modal validation errors when modal closes
   useEffect(() => {
     if (!isAddingUser) {
-      setValidationErrors({});
+      setModalValidationErrors({});
+      setError(null);
     }
   }, [isAddingUser]);
 
-  const filteredProfiles = profiles.filter(profile => 
+  const filteredProfiles = profiles.filter(profile =>
     profile.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     profile.id_number?.includes(searchTerm) ||
+    profile.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     profile.phone_number?.includes(searchTerm) ||
     profile.county?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     profile.constituency?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -143,9 +156,9 @@ const VoterManagement = () => {
     const confirmation = window.confirm(
       `Are you sure you want to remove voter record for ${profile?.full_name} (ID: ${profile?.id_number})? This action cannot be undone.`
     );
-    
+
     if (!confirmation) return;
-    
+
     setLoading(true);
     try {
       const { error: deleteError } = await supabase
@@ -154,7 +167,7 @@ const VoterManagement = () => {
         .eq('id', id);
 
       if (deleteError) throw deleteError;
-      
+
       setSuccess({
         message: 'Voter record deleted successfully',
         type: 'delete'
@@ -175,41 +188,48 @@ const VoterManagement = () => {
   
   // Clear previous errors
   setError(null);
-  setValidationErrors({});
+  setModalValidationErrors({});
   
   // Validate form
   const errors = validateForm();
   if (Object.keys(errors).length > 0) {
-    setValidationErrors(errors);
+    setModalValidationErrors(errors);
     return;
   }
 
   setLoading(true);
   
   try {
-    // Double-check for duplicates at database level (race condition protection)
-    const { data: existingVoters, error: checkError } = await supabase
+    // Check for duplicates by ID number and phone
+    const { data: existingProfiles, error: checkError } = await supabase
       .from('profiles')
-      .select('id_number, phone_number')
-      .or(`id_number.eq.${formData.id_number.trim()},phone_number.eq.${formData.phone_number.trim()}`);
+      .select('*')
+      .or(`id_number.eq.${formData.id_number.trim()},phone_number.eq.${formData.phone_number.trim()},email.eq.${formData.email.trim()}`);
 
     if (checkError) throw checkError;
 
-    if (existingVoters?.length > 0) {
-      const duplicateId = existingVoters.find(v => v.id_number === formData.id_number.trim());
-      const duplicatePhone = existingVoters.find(v => v.phone_number === formData.phone_number.trim());
+    if (existingProfiles && existingProfiles.length > 0) {
+      // Check each type of duplicate
+      const duplicateId = existingProfiles.find(p => p.id_number === formData.id_number.trim());
+      const duplicatePhone = existingProfiles.find(p => p.phone_number === formData.phone_number.trim());
+      const duplicateEmail = existingProfiles.find(p => p.email === formData.email.trim());
       
       if (duplicateId) {
-        throw new Error(`ID number ${formData.id_number} is already registered in the database`);
+        throw new Error(`ID number ${formData.id_number} already registered to ${duplicateId.full_name}.`);
       }
       if (duplicatePhone) {
-        throw new Error(`Phone number ${formData.phone_number} is already registered in the database`);
+        throw new Error(`Phone number ${formData.phone_number} already registered to ${duplicatePhone.full_name}.`);
+      }
+      if (duplicateEmail) {
+        throw new Error(`Email ${formData.email} already registered to ${duplicateEmail.full_name}.`);
       }
     }
+    
     const temporaryPassword = `Voter@${formData.id_number.slice(-4)}`;
 
+    // Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: `${formData.id_number}@voter.registry`,
+      email: formData.email.trim(),
       password: temporaryPassword,
       options: {
         data: {
@@ -222,113 +242,140 @@ const VoterManagement = () => {
     });
 
     if (authError) {
-      
-      if (authError.message.includes('User already registered')) {
-     
-        const { data: existingUser } = await supabase.auth.signInWithPassword({
-          email: `${formData.id_number}@voter.registry`,
+      if (authError.message.includes('already registered')) {
+        // User already exists in auth - try to sign in
+        const { data: existingUser, error: signInError } = await supabase.auth.signInWithPassword({
+          email: formData.email.trim(),
           password: temporaryPassword
         });
         
-        if (!existingUser?.user) {
-          throw new Error('User already exists but cannot be accessed. Please contact administrator.');
+        if (signInError || !existingUser?.user) {
+          throw new Error(`Email ${formData.email} already registered with different password.`);
         }
         
-   
         const userId = existingUser.user.id;
         
-      
-        const { data: existingProfile } = await supabase
+        // Check if profile exists for this user ID
+        const { data: existingProfile, error: profileCheckError } = await supabase
           .from('profiles')
-          .select('id')
+          .select('id, full_name, id_number, email')
           .eq('id', userId)
           .single();
 
+        if (profileCheckError && profileCheckError.code !== 'PGRST116') { // PGRST116 = no rows returned
+          throw profileCheckError;
+        }
+        
         if (existingProfile) {
-          throw new Error('Profile already exists for this user');
+          // Profile exists - UPDATE it instead of inserting
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              full_name: formData.full_name.trim(),
+              id_number: formData.id_number.trim(),
+              email: formData.email.trim(), // Add the missing email
+              phone_number: formData.phone_number.trim(),
+              county: formData.county.trim(),
+              constituency: formData.constituency.trim(),
+              ward: formData.ward.trim(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', userId);
+
+          if (updateError) throw updateError;
+          
+          setSuccess({
+            message: 'Voter profile updated successfully!',
+            type: 'add',
+            details: `Added email to existing voter record.`
+          });
+        } else {
+          // No profile exists - create new one
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: userId,
+              full_name: formData.full_name.trim(),
+              id_number: formData.id_number.trim(),
+              email: formData.email.trim(),
+              phone_number: formData.phone_number.trim(),
+              county: formData.county.trim(),
+              constituency: formData.constituency.trim(),
+              ward: formData.ward.trim(),
+              updated_at: new Date().toISOString()
+            });
+
+          if (profileError) throw profileError;
+          
+          setSuccess({
+            message: 'Voter registered successfully!',
+            type: 'add',
+            details: `Email: ${formData.email}, Password: Voter@${formData.id_number.slice(-4)}`
+          });
         }
-
         
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([{
-            id: userId,
-            full_name: formData.full_name.trim(),
-            id_number: formData.id_number.trim(),
-            phone_number: formData.phone_number.trim(),
-            county: formData.county.trim(),
-            constituency: formData.constituency.trim(),
-            ward: formData.ward.trim(),
-            updated_at: new Date().toISOString()
-          }]);
-
-        if (profileError) throw profileError;
-        
-        setSuccess({
-          message: 'Voter registered successfully (existing user)!',
-          type: 'add'
-        });
-        
-        // Reset form
-        setFormData({ 
-          full_name: '', 
-          id_number: '', 
-          phone_number: '', 
-          county: '', 
-          constituency: '', 
-          ward: '' 
-        });
-        setIsAddingUser(false);
-        await fetchProfiles();
-        return;
+      } else {
+        throw new Error(`Failed to create user: ${authError.message}`);
       }
-      throw authError;
-    }
-
-    if (!authData.user) {
+    } else if (!authData.user) {
       throw new Error('User creation failed - no user data returned');
-    }
+    } else {
+      // New user created - create profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          full_name: formData.full_name.trim(),
+          id_number: formData.id_number.trim(),
+          email: formData.email.trim(),
+          phone_number: formData.phone_number.trim(),
+          county: formData.county.trim(),
+          constituency: formData.constituency.trim(),
+          ward: formData.ward.trim(),
+          updated_at: new Date().toISOString()
+        });
 
-    
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert([{
-        id: authData.user.id,
-        full_name: formData.full_name.trim(),
-        id_number: formData.id_number.trim(),
-        phone_number: formData.phone_number.trim(),
-        county: formData.county.trim(),
-        constituency: formData.constituency.trim(),
-        ward: formData.ward.trim(),
-        updated_at: new Date().toISOString()
-      }]);
+      if (profileError) {
+        if (profileError.code === '23505' && profileError.message.includes('profiles_pkey')) {
+          // Profile already exists - this shouldn't happen for new users
+          // But if it does, update it
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              full_name: formData.full_name.trim(),
+              id_number: formData.id_number.trim(),
+              email: formData.email.trim(),
+              phone_number: formData.phone_number.trim(),
+              county: formData.county.trim(),
+              constituency: formData.constituency.trim(),
+              ward: formData.ward.trim(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', authData.user.id);
 
-    if (profileError) {
-     
-      await supabase.auth.admin.deleteUser(authData.user.id);
-      
-    
-      if (profileError.code === '23505') { 
-        if (profileError.message.includes('id_number')) {
-          throw new Error(`ID number ${formData.id_number} already exists in database`);
-        } else if (profileError.message.includes('phone_number')) {
-          throw new Error(`Phone number ${formData.phone_number} already exists in database`);
+          if (updateError) throw updateError;
+          
+          setSuccess({
+            message: 'Voter profile updated successfully!',
+            type: 'add'
+          });
+        } else {
+          throw profileError;
         }
+      } else {
+        setSuccess({
+          message: 'Voter registered successfully!',
+          type: 'add',
+          details: `Email: ${formData.email}, Password: Voter@${formData.id_number.slice(-4)}`
+        });
       }
-      throw profileError;
     }
-    
-    // Success
-    setSuccess({
-      message: 'Voter registered successfully!',
-      type: 'add',
-      details: `User ID: ${authData.user.id.slice(0, 8)}...`
-    });
     
     // Reset form
     setFormData({ 
       full_name: '', 
       id_number: '', 
+      email: '',
       phone_number: '', 
       county: '', 
       constituency: '', 
@@ -353,10 +400,9 @@ const VoterManagement = () => {
       ...prev,
       [field]: value
     }));
-    
- 
-    if (validationErrors[field]) {
-      setValidationErrors(prev => ({
+
+    if (modalValidationErrors[field]) {
+      setModalValidationErrors(prev => ({
         ...prev,
         [field]: undefined
       }));
@@ -373,9 +419,9 @@ const VoterManagement = () => {
             {loading ? 'Synchronizing with Supabase...' : `${profiles.length} Total Records Found`}
           </p>
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-3">
-          <button 
+          <button
             onClick={fetchProfiles}
             disabled={loading}
             className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-all disabled:opacity-50 hover:scale-105 active:scale-95"
@@ -385,15 +431,15 @@ const VoterManagement = () => {
           </button>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <input 
+            <input
               type="text"
-              placeholder="Search by name, ID, phone, or location..."
+              placeholder="Search by name, ID, email, phone, or location..."
               className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-64 transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button 
+          <button
             onClick={() => setIsAddingUser(true)}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 shadow-lg shadow-blue-600/20"
           >
@@ -404,32 +450,35 @@ const VoterManagement = () => {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3 text-red-700 animate-in fade-in slide-in-from-top-2">
+        <div className="relative z-50 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3 text-red-700 animate-in fade-in slide-in-from-top-2">
           <AlertCircle size={20} className="shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="font-semibold text-sm mb-1">{error.message}</p>
             <p className="text-xs text-red-600/80">{error.details}</p>
           </div>
-          <button 
-            onClick={() => setError(null)} 
+          <button
+            onClick={() => setError(null)}
             className="p-1 hover:bg-red-100 rounded-lg transition-colors"
           >
-            <X size={16}/>
+            <X size={16} />
           </button>
         </div>
       )}
 
       {success && (
-        <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3 text-emerald-700 animate-in fade-in slide-in-from-top-2">
+        <div className="relative z-50 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3 text-emerald-700 animate-in fade-in slide-in-from-top-2">
           <CheckCircle size={20} className="shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="font-semibold text-sm">{success.message}</p>
+            {success.details && (
+              <p className="text-xs text-emerald-600/80 mt-1">{success.details}</p>
+            )}
           </div>
-          <button 
-            onClick={() => setSuccess(null)} 
+          <button
+            onClick={() => setSuccess(null)}
             className="p-1 hover:bg-emerald-100 rounded-lg transition-colors"
           >
-            <X size={16}/>
+            <X size={16} />
           </button>
         </div>
       )}
@@ -445,7 +494,7 @@ const VoterManagement = () => {
           {filteredProfiles.map(profile => (
             <div key={profile.id} className="group bg-white border border-slate-200 rounded-[2rem] p-6 hover:border-blue-400 hover:shadow-2xl hover:shadow-blue-500/10 transition-all relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
+                <button
                   onClick={() => handleDelete(profile.id)}
                   className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                   title="Delete voter record"
@@ -455,14 +504,14 @@ const VoterManagement = () => {
               </div>
 
               <div className="flex items-start gap-4 mb-6">
-                <div className="h-14 w-14 shrink-0 rounded-2xl bg-linear-to-br from-slate-50 to-slate-100 flex items-center justify-center text-slate-400 font-black text-xl border border-slate-200 group-hover:from-blue-50 group-hover:to-blue-100 group-hover:text-blue-600 group-hover:border-blue-200 transition-all">
+                <div className="h-14 w-14 shrink-0 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center text-slate-400 font-black text-xl border border-slate-200 group-hover:from-blue-50 group-hover:to-blue-100 group-hover:text-blue-600 group-hover:border-blue-200 transition-all">
                   {profile.full_name?.charAt(0) || 'V'}
                 </div>
                 <div className="pr-8">
-                  <p className="font-black text-slate-900 text-lg leading-tight mb-1">{profile.full_name}</p>
+                  <p className="font-black text-slate-900 text-lg leading-tight mb-1">{profile.full_name || 'No Name'}</p>
                   <div className="flex items-center gap-1.5 text-slate-400 font-mono">
                     <IdCard size={14} />
-                    <span className="text-xs font-bold uppercase tracking-tighter">ID: {profile.id_number}</span>
+                    <span className="text-xs font-bold uppercase tracking-tighter">ID: {profile.id_number || 'No ID'}</span>
                   </div>
                 </div>
               </div>
@@ -470,21 +519,27 @@ const VoterManagement = () => {
               <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
                 <div className="flex items-center gap-3 text-sm text-slate-600 font-semibold">
                   <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
+                    <Mail size={14} className="text-blue-500" />
+                  </div>
+                  <span className="truncate">{profile.email || 'No email provided'}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-slate-600 font-semibold">
+                  <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
                     <Phone size={14} className="text-emerald-500" />
                   </div>
-                  <span>{profile.phone_number}</span>
+                  <span>{profile.phone_number || 'No phone'}</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-slate-600">
                   <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
                     <MapPin size={14} className="text-blue-500" />
                   </div>
-                  <span className="truncate">{profile.county} • {profile.constituency}</span>
+                  <span className="truncate">{profile.county || 'N/A'} • {profile.constituency || 'N/A'}</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-slate-600">
                   <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
                     <Layers size={14} className="text-indigo-500" />
                   </div>
-                  <span className="truncate font-medium">Ward: <span className="font-bold text-slate-900">{profile.ward}</span></span>
+                  <span className="truncate font-medium">Ward: <span className="font-bold text-slate-900">{profile.ward || 'N/A'}</span></span>
                 </div>
               </div>
 
@@ -527,8 +582,8 @@ const VoterManagement = () => {
                 <h3 className="text-2xl font-black text-slate-900 tracking-tight">Register Voter</h3>
                 <p className="text-blue-600 text-xs font-bold uppercase tracking-widest mt-1">Live Supabase Node</p>
               </div>
-              <button 
-                onClick={() => setIsAddingUser(false)} 
+              <button
+                onClick={() => setIsAddingUser(false)}
                 className="p-2 hover:bg-white hover:shadow-sm rounded-2xl transition-all"
                 disabled={loading}
               >
@@ -542,19 +597,17 @@ const VoterManagement = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                     Full Legal Name
-                    {validationErrors.full_name && (
-                      <span className="text-red-500 ml-2">✗ {validationErrors.full_name}</span>
+                    {modalValidationErrors.full_name && (
+                      <span className="text-red-500 ml-2">✗ {modalValidationErrors.full_name}</span>
                     )}
                   </label>
                   <div className="relative">
-                    <User className={`absolute left-4 top-1/2 -translate-y-1/2 ${
-                      validationErrors.full_name ? 'text-red-300' : 'text-slate-300'
-                    }`} size={18} />
-                    <input 
+                    <User className={`absolute left-4 top-1/2 -translate-y-1/2 ${modalValidationErrors.full_name ? 'text-red-300' : 'text-slate-300'
+                      }`} size={18} />
+                    <input
                       required
-                      className={`w-full pl-12 pr-4 py-4 bg-slate-50 border ${
-                        validationErrors.full_name ? 'border-red-200 focus:ring-red-500/10' : 'border-slate-100 focus:ring-blue-500/10'
-                      } rounded-2xl focus:ring-4 focus:border-blue-500 outline-none text-sm font-semibold transition-all`}
+                      className={`w-full pl-12 pr-4 py-4 bg-slate-50 border ${modalValidationErrors.full_name ? 'border-red-200 focus:ring-red-500/10' : 'border-slate-100 focus:ring-blue-500/10'
+                        } rounded-2xl focus:ring-4 focus:border-blue-500 outline-none text-sm font-semibold transition-all`}
                       placeholder="Jane Maridadi"
                       value={formData.full_name}
                       onChange={e => handleInputChange('full_name', e.target.value)}
@@ -567,121 +620,156 @@ const VoterManagement = () => {
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                       ID Number
-                      {validationErrors.id_number && (
-                        <span className="text-red-500 ml-2">✗ {validationErrors.id_number}</span>
+                      {modalValidationErrors.id_number && (
+                        <span className="text-red-500 ml-2">✗ {modalValidationErrors.id_number}</span>
                       )}
                     </label>
-                    <input 
+                    <input
                       required
-                      className={`w-full px-5 py-4 bg-slate-50 border ${
-                        validationErrors.id_number ? 'border-red-200 focus:ring-red-500/10' : 'border-slate-100 focus:ring-blue-500/10'
-                      } rounded-2xl focus:ring-4 focus:border-blue-500 outline-none text-sm font-semibold transition-all`}
+                      className={`w-full px-5 py-4 bg-slate-50 border ${modalValidationErrors.id_number ? 'border-red-200 focus:ring-red-500/10' : 'border-slate-100 focus:ring-blue-500/10'
+                        } rounded-2xl focus:ring-4 focus:border-blue-500 outline-none text-sm font-semibold transition-all`}
                       placeholder="12345678"
                       value={formData.id_number}
                       onChange={e => handleInputChange('id_number', e.target.value)}
                     />
                   </div>
-                  
-                  {/* Phone Number */}
+
+                  {/* Email */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                      Phone
-                      {validationErrors.phone_number && (
-                        <span className="text-red-500 ml-2">✗ {validationErrors.phone_number}</span>
+                      Email Address
+                      {modalValidationErrors.email && (
+                        <span className="text-red-500 ml-2">✗ {modalValidationErrors.email}</span>
                       )}
                     </label>
-                    <input 
-                      required
-                      className={`w-full px-5 py-4 bg-slate-50 border ${
-                        validationErrors.phone_number ? 'border-red-200 focus:ring-red-500/10' : 'border-slate-100 focus:ring-blue-500/10'
-                      } rounded-2xl focus:ring-4 focus:border-blue-500 outline-none text-sm font-semibold transition-all`}
-                      placeholder="+254712345678"
-                      value={formData.phone_number}
-                      onChange={e => handleInputChange('phone_number', e.target.value)}
-                    />
+                    <div className="relative">
+                      <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 ${modalValidationErrors.email ? 'text-red-300' : 'text-slate-300'
+                        }`} size={18} />
+                      <input
+                        type="email"
+                        required
+                        className={`w-full pl-12 pr-4 py-4 bg-slate-50 border ${modalValidationErrors.email ? 'border-red-200 focus:ring-red-500/10' : 'border-slate-100 focus:ring-blue-500/10'
+                          } rounded-2xl focus:ring-4 focus:border-blue-500 outline-none text-sm font-semibold transition-all`}
+                        placeholder="voter@example.com"
+                        value={formData.email}
+                        onChange={e => handleInputChange('email', e.target.value)}
+                      />
+                    </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
+                  {/* Phone Number */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                      Phone
+                      {modalValidationErrors.phone_number && (
+                        <span className="text-red-500 ml-2">✗ {modalValidationErrors.phone_number}</span>
+                      )}
+                    </label>
+                    <div className="relative">
+                      <Phone className={`absolute left-4 top-1/2 -translate-y-1/2 ${modalValidationErrors.phone_number ? 'text-red-300' : 'text-slate-300'
+                        }`} size={18} />
+                      <input
+                        required
+                        className={`w-full pl-12 pr-4 py-4 bg-slate-50 border ${modalValidationErrors.phone_number ? 'border-red-200 focus:ring-red-500/10' : 'border-slate-100 focus:ring-blue-500/10'
+                          } rounded-2xl focus:ring-4 focus:border-blue-500 outline-none text-sm font-semibold transition-all`}
+                        placeholder="+254712345678"
+                        value={formData.phone_number}
+                        onChange={e => handleInputChange('phone_number', e.target.value)}
+                      />
+                    </div>
+                  </div>
+
                   {/* County */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                       County
-                      {validationErrors.county && (
-                        <span className="text-red-500 ml-2">✗ {validationErrors.county}</span>
+                      {modalValidationErrors.county && (
+                        <span className="text-red-500 ml-2">✗ {modalValidationErrors.county}</span>
                       )}
                     </label>
-                    <input 
+                    <input
                       required
-                      className={`w-full px-5 py-4 bg-slate-50 border ${
-                        validationErrors.county ? 'border-red-200 focus:ring-red-500/10' : 'border-slate-100 focus:ring-blue-500/10'
-                      } rounded-2xl focus:ring-4 focus:border-blue-500 outline-none text-sm font-semibold transition-all`}
+                      className={`w-full px-5 py-4 bg-slate-50 border ${modalValidationErrors.county ? 'border-red-200 focus:ring-red-500/10' : 'border-slate-100 focus:ring-blue-500/10'
+                        } rounded-2xl focus:ring-4 focus:border-blue-500 outline-none text-sm font-semibold transition-all`}
                       placeholder="Nairobi"
                       value={formData.county}
                       onChange={e => handleInputChange('county', e.target.value)}
                     />
                   </div>
-                  
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   {/* Constituency */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                       Constituency
-                      {validationErrors.constituency && (
-                        <span className="text-red-500 ml-2">✗ {validationErrors.constituency}</span>
+                      {modalValidationErrors.constituency && (
+                        <span className="text-red-500 ml-2">✗ {modalValidationErrors.constituency}</span>
                       )}
                     </label>
-                    <input 
+                    <input
                       required
-                      className={`w-full px-5 py-4 bg-slate-50 border ${
-                        validationErrors.constituency ? 'border-red-200 focus:ring-red-500/10' : 'border-slate-100 focus:ring-blue-500/10'
-                      } rounded-2xl focus:ring-4 focus:border-blue-500 outline-none text-sm font-semibold transition-all`}
+                      className={`w-full px-5 py-4 bg-slate-50 border ${modalValidationErrors.constituency ? 'border-red-200 focus:ring-red-500/10' : 'border-slate-100 focus:ring-blue-500/10'
+                        } rounded-2xl focus:ring-4 focus:border-blue-500 outline-none text-sm font-semibold transition-all`}
                       placeholder="Westlands"
                       value={formData.constituency}
                       onChange={e => handleInputChange('constituency', e.target.value)}
                     />
                   </div>
+
+                  {/* Ward */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                      Ward
+                      {modalValidationErrors.ward && (
+                        <span className="text-red-500 ml-2">✗ {modalValidationErrors.ward}</span>
+                      )}
+                    </label>
+                    <input
+                      required
+                      className={`w-full px-5 py-4 bg-slate-50 border ${modalValidationErrors.ward ? 'border-red-200 focus:ring-red-500/10' : 'border-slate-100 focus:ring-blue-500/10'
+                        } rounded-2xl focus:ring-4 focus:border-blue-500 outline-none text-sm font-semibold transition-all`}
+                      placeholder="Parklands"
+                      value={formData.ward}
+                      onChange={e => handleInputChange('ward', e.target.value)}
+                    />
+                  </div>
                 </div>
 
-                {/* Ward */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                    Ward
-                    {validationErrors.ward && (
-                      <span className="text-red-500 ml-2">✗ {validationErrors.ward}</span>
-                    )}
-                  </label>
-                  <input 
-                    required
-                    className={`w-full px-5 py-4 bg-slate-50 border ${
-                      validationErrors.ward ? 'border-red-200 focus:ring-red-500/10' : 'border-slate-100 focus:ring-blue-500/10'
-                    } rounded-2xl focus:ring-4 focus:border-blue-500 outline-none text-sm font-semibold transition-all`}
-                    placeholder="Parklands"
-                    value={formData.ward}
-                    onChange={e => handleInputChange('ward', e.target.value)}
-                  />
+                {/* Password Info */}
+                <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                  <div className="flex items-center gap-2 mb-1">
+                    <AlertCircle size={16} className="text-blue-500" />
+                    <p className="text-sm font-semibold text-blue-700">Login Information</p>
+                  </div>
+                  <p className="text-xs text-blue-600">
+                    Password will be auto-generated: <span className="font-mono font-bold">Voter@{formData.id_number ? formData.id_number.slice(-4) : 'XXXX'}</span>
+                  </p>
                 </div>
               </div>
 
               <div className="space-y-3">
                 {/* Validation Summary */}
-                {Object.keys(validationErrors).length > 0 && (
+                {Object.keys(modalValidationErrors).length > 0 && (
                   <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
                     <div className="flex items-center gap-2 mb-2">
                       <AlertTriangle size={16} className="text-red-500" />
                       <p className="text-sm font-semibold text-red-700">Please fix the following errors:</p>
                     </div>
                     <ul className="text-xs text-red-600 space-y-1 pl-6">
-                      {Object.values(validationErrors).map((err, index) => (
-                        err && <li key={index} className="list-disc">{err}</li>
+                      {Object.entries(modalValidationErrors).map(([key, error], index) => (
+                        error && <li key={index} className="list-disc">{error}</li>
                       ))}
                     </ul>
                   </div>
                 )}
 
-                <button 
+                <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-5 text-base font-black text-white bg-blue-600 rounded-[1.5rem] hover:bg-blue-700 shadow-xl shadow-blue-600/30 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                  className="w-full py-5 text-base font-black text-white bg-blue-600 rounded-3xl hover:bg-blue-700 shadow-xl shadow-blue-600/30 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                 >
                   {loading ? <Loader2 size={20} className="animate-spin" /> : <UserPlus size={20} />}
                   {loading ? 'Registering...' : 'Confirm Registration'}
