@@ -184,216 +184,216 @@ const VoterManagement = () => {
   };
 
   const handleAddVoter = async (e) => {
-  e.preventDefault();
-  
-  // Clear previous errors
-  setError(null);
-  setModalValidationErrors({});
-  
-  // Validate form
-  const errors = validateForm();
-  if (Object.keys(errors).length > 0) {
-    setModalValidationErrors(errors);
-    return;
-  }
+    e.preventDefault();
 
-  setLoading(true);
-  
-  try {
-    // Check for duplicates by ID number and phone
-    const { data: existingProfiles, error: checkError } = await supabase
-      .from('profiles')
-      .select('*')
-      .or(`id_number.eq.${formData.id_number.trim()},phone_number.eq.${formData.phone_number.trim()},email.eq.${formData.email.trim()}`);
+    // Clear previous errors
+    setError(null);
+    setModalValidationErrors({});
 
-    if (checkError) throw checkError;
-
-    if (existingProfiles && existingProfiles.length > 0) {
-      // Check each type of duplicate
-      const duplicateId = existingProfiles.find(p => p.id_number === formData.id_number.trim());
-      const duplicatePhone = existingProfiles.find(p => p.phone_number === formData.phone_number.trim());
-      const duplicateEmail = existingProfiles.find(p => p.email === formData.email.trim());
-      
-      if (duplicateId) {
-        throw new Error(`ID number ${formData.id_number} already registered to ${duplicateId.full_name}.`);
-      }
-      if (duplicatePhone) {
-        throw new Error(`Phone number ${formData.phone_number} already registered to ${duplicatePhone.full_name}.`);
-      }
-      if (duplicateEmail) {
-        throw new Error(`Email ${formData.email} already registered to ${duplicateEmail.full_name}.`);
-      }
+    // Validate form
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setModalValidationErrors(errors);
+      return;
     }
-    
-    const temporaryPassword = `Voter@${formData.id_number.slice(-4)}`;
 
-    // Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: formData.email.trim(),
-      password: temporaryPassword,
-      options: {
-        data: {
-          full_name: formData.full_name.trim(),
-          id_number: formData.id_number.trim(),
-          phone_number: formData.phone_number.trim(),
-          user_type: 'voter'
+    setLoading(true);
+
+    try {
+      // Check for duplicates by ID number and phone
+      const { data: existingProfiles, error: checkError } = await supabase
+        .from('profiles')
+        .select('*')
+        .or(`id_number.eq.${formData.id_number.trim()},phone_number.eq.${formData.phone_number.trim()},email.eq.${formData.email.trim()}`);
+
+      if (checkError) throw checkError;
+
+      if (existingProfiles && existingProfiles.length > 0) {
+        // Check each type of duplicate
+        const duplicateId = existingProfiles.find(p => p.id_number === formData.id_number.trim());
+        const duplicatePhone = existingProfiles.find(p => p.phone_number === formData.phone_number.trim());
+        const duplicateEmail = existingProfiles.find(p => p.email === formData.email.trim());
+
+        if (duplicateId) {
+          throw new Error(`ID number ${formData.id_number} already registered to ${duplicateId.full_name}.`);
+        }
+        if (duplicatePhone) {
+          throw new Error(`Phone number ${formData.phone_number} already registered to ${duplicatePhone.full_name}.`);
+        }
+        if (duplicateEmail) {
+          throw new Error(`Email ${formData.email} already registered to ${duplicateEmail.full_name}.`);
         }
       }
-    });
 
-    if (authError) {
-      if (authError.message.includes('already registered')) {
-        // User already exists in auth - try to sign in
-        const { data: existingUser, error: signInError } = await supabase.auth.signInWithPassword({
-          email: formData.email.trim(),
-          password: temporaryPassword
-        });
-        
-        if (signInError || !existingUser?.user) {
-          throw new Error(`Email ${formData.email} already registered with different password.`);
+      const temporaryPassword = `Voter@${formData.id_number.slice(-4)}`;
+
+      // Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email.trim(),
+        password: temporaryPassword,
+        options: {
+          data: {
+            full_name: formData.full_name.trim(),
+            id_number: formData.id_number.trim(),
+            phone_number: formData.phone_number.trim(),
+            user_type: 'voter'
+          }
         }
-        
-        const userId = existingUser.user.id;
-        
-        // Check if profile exists for this user ID
-        const { data: existingProfile, error: profileCheckError } = await supabase
-          .from('profiles')
-          .select('id, full_name, id_number, email')
-          .eq('id', userId)
-          .single();
+      });
 
-        if (profileCheckError && profileCheckError.code !== 'PGRST116') { // PGRST116 = no rows returned
-          throw profileCheckError;
-        }
-        
-        if (existingProfile) {
-          // Profile exists - UPDATE it instead of inserting
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update({
-              full_name: formData.full_name.trim(),
-              id_number: formData.id_number.trim(),
-              email: formData.email.trim(), // Add the missing email
-              phone_number: formData.phone_number.trim(),
-              county: formData.county.trim(),
-              constituency: formData.constituency.trim(),
-              ward: formData.ward.trim(),
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', userId);
-
-          if (updateError) throw updateError;
-          
-          setSuccess({
-            message: 'Voter profile updated successfully!',
-            type: 'add',
-            details: `Added email to existing voter record.`
+      if (authError) {
+        if (authError.message.includes('already registered')) {
+          // User already exists in auth - try to sign in
+          const { data: existingUser, error: signInError } = await supabase.auth.signInWithPassword({
+            email: formData.email.trim(),
+            password: temporaryPassword
           });
-        } else {
-          // No profile exists - create new one
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: userId,
-              full_name: formData.full_name.trim(),
-              id_number: formData.id_number.trim(),
-              email: formData.email.trim(),
-              phone_number: formData.phone_number.trim(),
-              county: formData.county.trim(),
-              constituency: formData.constituency.trim(),
-              ward: formData.ward.trim(),
-              updated_at: new Date().toISOString()
-            });
 
-          if (profileError) throw profileError;
-          
+          if (signInError || !existingUser?.user) {
+            throw new Error(`Email ${formData.email} already registered with different password.`);
+          }
+
+          const userId = existingUser.user.id;
+
+          // Check if profile exists for this user ID
+          const { data: existingProfile, error: profileCheckError } = await supabase
+            .from('profiles')
+            .select('id, full_name, id_number, email')
+            .eq('id', userId)
+            .single();
+
+          if (profileCheckError && profileCheckError.code !== 'PGRST116') { // PGRST116 = no rows returned
+            throw profileCheckError;
+          }
+
+          if (existingProfile) {
+            // Profile exists - UPDATE it instead of inserting
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({
+                full_name: formData.full_name.trim(),
+                id_number: formData.id_number.trim(),
+                email: formData.email.trim(), // Add the missing email
+                phone_number: formData.phone_number.trim(),
+                county: formData.county.trim(),
+                constituency: formData.constituency.trim(),
+                ward: formData.ward.trim(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', userId);
+
+            if (updateError) throw updateError;
+
+            setSuccess({
+              message: 'Voter profile updated successfully!',
+              type: 'add',
+              details: `Added email to existing voter record.`
+            });
+          } else {
+            // No profile exists - create new one
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .insert({
+                id: userId,
+                full_name: formData.full_name.trim(),
+                id_number: formData.id_number.trim(),
+                email: formData.email.trim(),
+                phone_number: formData.phone_number.trim(),
+                county: formData.county.trim(),
+                constituency: formData.constituency.trim(),
+                ward: formData.ward.trim(),
+                updated_at: new Date().toISOString()
+              });
+
+            if (profileError) throw profileError;
+
+            setSuccess({
+              message: 'Voter registered successfully!',
+              type: 'add',
+              details: `Email: ${formData.email}, Password: Voter@${formData.id_number.slice(-4)}`
+            });
+          }
+
+        } else {
+          throw new Error(`Failed to create user: ${authError.message}`);
+        }
+      } else if (!authData.user) {
+        throw new Error('User creation failed - no user data returned');
+      } else {
+        // New user created - create profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: authData.user.id,
+            full_name: formData.full_name.trim(),
+            id_number: formData.id_number.trim(),
+            email: formData.email.trim(),
+            phone_number: formData.phone_number.trim(),
+            county: formData.county.trim(),
+            constituency: formData.constituency.trim(),
+            ward: formData.ward.trim(),
+            updated_at: new Date().toISOString()
+          });
+
+        if (profileError) {
+          if (profileError.code === '23505' && profileError.message.includes('profiles_pkey')) {
+            // Profile already exists - this shouldn't happen for new users
+            // But if it does, update it
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({
+                full_name: formData.full_name.trim(),
+                id_number: formData.id_number.trim(),
+                email: formData.email.trim(),
+                phone_number: formData.phone_number.trim(),
+                county: formData.county.trim(),
+                constituency: formData.constituency.trim(),
+                ward: formData.ward.trim(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', authData.user.id);
+
+            if (updateError) throw updateError;
+
+            setSuccess({
+              message: 'Voter profile updated successfully!',
+              type: 'add'
+            });
+          } else {
+            throw profileError;
+          }
+        } else {
           setSuccess({
             message: 'Voter registered successfully!',
             type: 'add',
             details: `Email: ${formData.email}, Password: Voter@${formData.id_number.slice(-4)}`
           });
         }
-        
-      } else {
-        throw new Error(`Failed to create user: ${authError.message}`);
       }
-    } else if (!authData.user) {
-      throw new Error('User creation failed - no user data returned');
-    } else {
-      // New user created - create profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
-          full_name: formData.full_name.trim(),
-          id_number: formData.id_number.trim(),
-          email: formData.email.trim(),
-          phone_number: formData.phone_number.trim(),
-          county: formData.county.trim(),
-          constituency: formData.constituency.trim(),
-          ward: formData.ward.trim(),
-          updated_at: new Date().toISOString()
-        });
 
-      if (profileError) {
-        if (profileError.code === '23505' && profileError.message.includes('profiles_pkey')) {
-          // Profile already exists - this shouldn't happen for new users
-          // But if it does, update it
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update({
-              full_name: formData.full_name.trim(),
-              id_number: formData.id_number.trim(),
-              email: formData.email.trim(),
-              phone_number: formData.phone_number.trim(),
-              county: formData.county.trim(),
-              constituency: formData.constituency.trim(),
-              ward: formData.ward.trim(),
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', authData.user.id);
-
-          if (updateError) throw updateError;
-          
-          setSuccess({
-            message: 'Voter profile updated successfully!',
-            type: 'add'
-          });
-        } else {
-          throw profileError;
-        }
-      } else {
-        setSuccess({
-          message: 'Voter registered successfully!',
-          type: 'add',
-          details: `Email: ${formData.email}, Password: Voter@${formData.id_number.slice(-4)}`
-        });
-      }
+      // Reset form
+      setFormData({
+        full_name: '',
+        id_number: '',
+        email: '',
+        phone_number: '',
+        county: '',
+        constituency: '',
+        ward: ''
+      });
+      setIsAddingUser(false);
+      await fetchProfiles();
+    } catch (err) {
+      console.error("Registration error:", err);
+      setError({
+        message: 'Failed to register voter',
+        details: err.message,
+        type: 'add'
+      });
+    } finally {
+      setLoading(false);
     }
-    
-    // Reset form
-    setFormData({ 
-      full_name: '', 
-      id_number: '', 
-      email: '',
-      phone_number: '', 
-      county: '', 
-      constituency: '', 
-      ward: '' 
-    });
-    setIsAddingUser(false);
-    await fetchProfiles();
-  } catch (err) {
-    console.error("Registration error:", err);
-    setError({
-      message: 'Failed to register voter',
-      details: err.message,
-      type: 'add'
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
