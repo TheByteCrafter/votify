@@ -2,22 +2,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase';
 import {
-    PlusCircle,
-    Edit2,
-    Trash2,
+
     Users,
     Vote,
     BarChart3,
-    Shield,
     LogOut,
-    Search,
-    Filter,
     Download,
     RefreshCw,
     UserPlus,
     Award,
-    MapPin,
-    Home,
     CheckCircle,
     XCircle,
     Activity,
@@ -67,11 +60,11 @@ export default function AdminPortal() {
         ward: ''
     });
 
-    // Registration modal state
+  
     const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
     const [selectedRegistration, setSelectedRegistration] = useState(null);
 
-    // Seats configuration
+  
     const seats = [
         'Presidential',
         'Governor',
@@ -81,7 +74,7 @@ export default function AdminPortal() {
         'MCA'
     ];
 
-    // Counties for selection
+ 
     const counties = [
         "Baringo", "Bomet", "Bungoma", "Busia", "Elgeyo-Marakwet", "Embu",
         "Garissa", "Homa Bay", "Isiolo", "Kajiado", "Kakamega", "Kericho",
@@ -94,7 +87,7 @@ export default function AdminPortal() {
         "West Pokot"
     ];
 
-    // Navigation items
+ 
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'aspirants', label: 'Candidates', icon: UserCog },
@@ -173,14 +166,14 @@ export default function AdminPortal() {
     };
 
 
-    // Add this state for trends data
+   
     const [votingTrends, setVotingTrends] = useState([]);
     const [trendsLoading, setTrendsLoading] = useState(false);
 
     const fetchVotingTrends = async () => {
         setTrendsLoading(true);
         try {
-            // Call your RPC that groups votes by time
+            
             const { data: votesData, error } = await supabase
                 .from('user_votes')
                 .select('voted_at');
@@ -188,20 +181,20 @@ export default function AdminPortal() {
             if (!error && votesData) {
                 const buckets = {};
 
-                // Initialize all 24 hours with 0
+              
                 for (let hour = 0; hour < 24; hour++) {
                     const hourLabel = `${hour.toString().padStart(2, '0')}:00`;
                     buckets[hourLabel] = 0;
                 }
 
-                // Count votes into the right hour
+               
+                
                 votesData.forEach(v => {
                     const date = new Date(v.voted_at);
                     const hourLabel = `${date.getHours().toString().padStart(2, '0')}:00`;
                     buckets[hourLabel] += 1;
                 });
 
-                // Convert to chart data
                 const chartTrendsData = Object.entries(buckets).map(([hour, votes]) => ({
                     hour,
                     votes
@@ -240,7 +233,7 @@ export default function AdminPortal() {
         }
     }, [activeTab, stats.totalVotes]);
 
-    // Update the trends data usage
+  
     const chartTrendsData = useMemo(() => {
         if (votingTrends.length > 0) {
             return votingTrends;
@@ -517,7 +510,6 @@ export default function AdminPortal() {
     const chartData = getChartData();
     const topAspirants = getTopAspirants();
     const partyDistribution = getPartyDistribution();
-
     const COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#6B7280'];
 
     if (loading) {

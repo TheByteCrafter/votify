@@ -1,27 +1,108 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../supabase';
 import LoginPage from '../Pages/LoginPage';
 import Admin from '../Pages/Admin';
 import WaveLoader from '../Components/WaveLoader';
 
-function RequireAdminLogin({ refreshSystemStatus }) {
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
+
+const API_URL = 'https://votifybackend-h0yt.onrender.com/api';
+
+function RequireAdminLogin({ 
+  refreshSystemStatus, 
+  onRateLimitViolation, 
+  incrementLoginAttempts,
+  resetLoginAttempts 
+}) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [admin, setAdmin] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [rateLimitError, setRateLimitError] = useState(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    if (resetLoginAttempts) {
+      resetLoginAttempts();
+    }
   }, []);
 
-  if (loading) return <WaveLoader />;
+  const handleLogin = async (credentials) => {
+    setLoading(true);
+    setRateLimitError(null);
+    
+    try {
+      const response = await fetch(`${API_URL}/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials),
+      });
 
-  if (!session) {
-    return <LoginPage />;
+      // Check for backend rate limiting
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After') || 60;
+        
+        // Notify parent component about rate limiting
+        if (onRateLimitViolation) {
+          onRateLimitViolation(retryAfter);
+        }
+        
+        return { 
+          success: false, 
+          error: `Too many attempts. System locked for ${retryAfter} seconds.`,
+          rateLimited: true 
+        };
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+      
+        if (incrementLoginAttempts) {
+          incrementLoginAttempts();
+        }
+        
+        throw new Error(data.error || 'Login failed');
+      }
+
+      // Successful login - reset attempts
+      if (resetLoginAttempts) {
+        resetLoginAttempts();
+      }
+      
+      setAdmin(data.admin);
+      setIsAuthenticated(true);
+      return { success: true };
+      
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.message,
+        rateLimited: false 
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setAdmin(null);
+  };
+
+  if (loading) {
+    return <WaveLoader />;
   }
 
-  return <Admin refreshSystemStatus={refreshSystemStatus} />;
-};
+  if (!isAuthenticated) {
+    return (
+      <LoginPage 
+        onLoginSuccess={(adminData) => {
+          setAdmin(adminData);
+          setIsAuthenticated(true);
+        }}
+        onLogin={handleLogin}
+      />
+    );
+  }
+
+  return <Admin refreshSystemStatus={refreshSystemStatus} admin={admin} onLogout={handleLogout} />;
+}
 
 export default RequireAdminLogin;
