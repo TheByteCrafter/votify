@@ -48,8 +48,6 @@ export default function AdminPortal() {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingAspirant, setEditingAspirant] = useState(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterSeat, setFilterSeat] = useState('all');
     const [stats, setStats] = useState({
         totalVotes: 0,
         totalVoters: 0,
@@ -613,7 +611,7 @@ export default function AdminPortal() {
 
                         <div className="flex items-center gap-3">
                             <button
-                                onClick={() => navigate('/aspirant-registration')}
+                                onClick={() => navigate('/aspirant')}
                                 className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:shadow-lg transition-all"
                             >
                                 <UserPlus size={18} />

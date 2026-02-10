@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { supabase } from '../../supabase'; 
 import { Vote, Lock, Mail, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
-
+import { useNavigate } from 'react-router-dom';
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(false);
-
+  const navigate = useNavigate();
   const handleLogin = async (e) => {
     e.preventDefault();
     setError(null);
@@ -26,6 +26,8 @@ const LoginPage = () => {
       alert('Access Denied: ' + loginError);
     } else {
       setMessage('Identity verified. Accessing secure terminal...');
+      window.location.href = '/admin'; // Redirect to admin dashboard on successful login
+
       
     }
   };

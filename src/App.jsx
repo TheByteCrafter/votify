@@ -8,10 +8,11 @@ import LoginPage from './Pages/LoginPage';
 import { supabase } from '../supabase';
 import SystemLocked from './Pages/SytstemLocked';
 import WaveLoader from './Components/WaveLoader';
-
+import RequireAdminLogin from './States/authSession';
 
 function App() {
   const [session, setSession] = useState(null);
+  const [adminSession, setAdminSession] = useState(null);
   const [isSystemActive, setIsSystemActive] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -23,6 +24,18 @@ function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setAdminSession(null); //admin needs to login every time they access the admin page, so we don't persist their session in state. This is a security measure to ensure that admin access is always verified through login.
+    });
+
+    //once we have the admin session, we can set up the auth state change listener to update the admin session state accordingly
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setAdminSession(session);
+    });
+
+
+
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
@@ -60,12 +73,11 @@ function App() {
         const previousState = isSystemActive;
         setIsSystemActive(data.ISSystemActive);
         setLastUpdated(new Date().toLocaleTimeString());
-        
-        // Log if status changed
+
         if (previousState !== null && previousState !== data.ISSystemActive) {
           console.log(`System status changed from ${previousState} to ${data.ISSystemActive} at ${new Date().toLocaleTimeString()}`);
         }
-        
+
         setError(null);
       }
     } catch (err) {
@@ -109,7 +121,10 @@ function App() {
           <Route path="/" element={isSystemActive ? <LandingPage /> : <SystemLocked />} />
           <Route path="/user" element={isSystemActive ? <UserPortal /> : <Navigate to="/" />} />
           <Route path="/aspirant" element={isSystemActive ? <AspirantRegistration /> : <Navigate to="/" />} />
-          <Route path="/admin" element={!session ? <LoginPage /> : <Admin refreshSystemStatus={refreshSystemStatus} />} />
+          <Route
+            path="/admin"
+            element={<RequireAdminLogin refreshSystemStatus={refreshSystemStatus} />}
+          />
           <Route path="/login" element={<LoginPage />} />
         </Routes>
       </Router>
