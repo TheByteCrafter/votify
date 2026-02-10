@@ -8,7 +8,7 @@ const LoginPage = () => {
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  
   const handleLogin = async (e) => {
     e.preventDefault();
     setError(null);
@@ -60,7 +60,7 @@ const LoginPage = () => {
 
           <form className="space-y-4" onSubmit={handleLogin}>
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 text-slate-500">Identity Email</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Identity Email</label>
               <div className="relative group">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                 <input
