@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect  } from 'react';
 import { Vote, Lock, Mail, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { rateLimiter } from '../States/rateLimit';
+import { Ban,Clock } from 'lucide-react';
 
 const API_URL = ' https://votifybackend-h0yt.onrender.com/api';
 const LoginPage = ({ onLoginSuccess }) => {
@@ -219,12 +220,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                 Refresh Status
               </button>
 
-              <button
-                onClick={resetLocalBan}
-                className="w-full py-3 px-4 bg-amber-600/20 hover:bg-amber-600/30 text-amber-200 font-medium rounded-xl transition-all border border-amber-500/30"
-              >
-                Reset Local Restrictions
-              </button>
+            
             </div>
           </div>
 

@@ -39,13 +39,13 @@ class RateLimiter {
     const attempts = parseInt(localStorage.getItem(key) || '0');
     localStorage.setItem(key, (attempts + 1).toString());
     
-    // Store timestamp of last attempt
+
     localStorage.setItem('last_failed_attempt', Date.now().toString());
     
     return attempts + 1;
   }
 
-  // Reset failed attempts
+
   resetFailedAttempts() {
     localStorage.removeItem('failed_login_attempts');
     localStorage.removeItem('last_failed_attempt');

@@ -34,11 +34,11 @@ function RequireAdminLogin({
         body: JSON.stringify(credentials),
       });
 
-      // Check for backend rate limiting
+     
       if (response.status === 429) {
         const retryAfter = response.headers.get('Retry-After') || 60;
         
-        // Notify parent component about rate limiting
+ 
         if (onRateLimitViolation) {
           onRateLimitViolation(retryAfter);
         }
