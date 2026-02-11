@@ -10,9 +10,8 @@ import WaveLoader from './Components/WaveLoader';
 import RequireAdminLogin from './States/authSession';
 import TestBackend from './Pages/TestBanckend';
 import BanScreen from './Components/isBanned';
-import { AlertTriangle, Shield, Lock, AlertCircle } from 'lucide-react';
+import { AlertTriangle, Shield, Lock, AlertCircle, Fingerprint, Globe, Cpu } from 'lucide-react';
 
-// API URL - should be in env vars
 const API_URL = process.env.REACT_APP_API_URL || 'https://votifybackend-h0yt.onrender.com/api';
 
 function App() {
@@ -30,51 +29,130 @@ function App() {
   const [rateLimitTimer, setRateLimitTimer] = useState(0);
   const rateLimitTimerRef = useRef(null);
   
-  // 🔴 NEW: Ban state - this blocks ENTIRE application
+  // 🔴 ENHANCED BAN STATE - Multiple identifiers
   const [isBanned, setIsBanned] = useState(false);
   const [banInfo, setBanInfo] = useState({
     ipViolations: 0,
     emailViolations: 0,
+    deviceViolations: 0,
     retryAfter: 86400,
     email: null,
-    timestamp: null
+    ipAddress: null,
+    deviceId: null,
+    userAgent: null,
+    timestamp: null,
+    banType: 'email' // email, ip, device, hybrid
   });
   const [banCheckComplete, setBanCheckComplete] = useState(false);
 
-  // 🔴 CRITICAL: Check for ban on app start and after failed logins
-  const checkBanStatus = async (email = null) => {
+  // 🔐 Generate persistent device fingerprint (survives browser restart)
+  const generateDeviceFingerprint = () => {
     try {
-      // If no email provided, try to get from localStorage (persist ban state)
-      const bannedEmail = email || localStorage.getItem('banned_email');
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl');
+      const debugInfo = gl?.getExtension('WEBGL_debug_renderer_info');
       
-      if (!bannedEmail) {
-        setIsBanned(false);
-        setBanCheckComplete(true);
-        return;
-      }
+      const components = [
+        navigator.userAgent,
+        navigator.language,
+        navigator.platform,
+        screen.colorDepth,
+        screen.width + 'x' + screen.height + 'x' + screen.pixelDepth,
+        new Date().getTimezoneOffset(),
+        navigator.hardwareConcurrency,
+        navigator.deviceMemory || 'unknown',
+        debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'unknown',
+        Intl.DateTimeFormat().resolvedOptions().timeZone
+      ];
 
-      const response = await fetch(`${API_URL}/voter/login-check`, {
+      // Create a hash
+      const fingerprint = btoa(components.join('|')).replace(/=/g, '');
+      
+      // Store in localStorage as backup but server is primary
+      localStorage.setItem('device_fingerprint', fingerprint);
+      
+      return fingerprint;
+    } catch (e) {
+      // Fallback fingerprint
+      const fallback = btoa(navigator.userAgent + screen.width + screen.height).replace(/=/g, '');
+      localStorage.setItem('device_fingerprint', fallback);
+      return fallback;
+    }
+  };
+
+  // 🔐 Get client IP through multiple services (redundant)
+  const getClientIP = async () => {
+    // Try multiple IP services for redundancy
+    const ipServices = [
+      'https://api.ipify.org?format=json',
+      'https://api.my-ip.io/ip.json',
+      'https://ipapi.co/json/'
+    ];
+
+    for (const service of ipServices) {
+      try {
+        const response = await fetch(service);
+        const data = await response.json();
+        const ip = data.ip || data.address || data;
+        if (ip) {
+          localStorage.setItem('client_ip', ip);
+          return ip;
+        }
+      } catch (e) {
+        console.warn(`IP service failed: ${service}`);
+      }
+    }
+    return localStorage.getItem('client_ip') || '0.0.0.0';
+  };
+
+  // 🚨 COMPREHENSIVE BAN CHECK - Server-side validation
+  const checkBanStatus = async (email = null, ip = null, deviceId = null) => {
+    try {
+      const deviceFingerprint = deviceId || localStorage.getItem('device_fingerprint') || generateDeviceFingerprint();
+      const clientIP = ip || localStorage.getItem('client_ip') || await getClientIP();
+      const userAgent = navigator.userAgent;
+      
+      // Get all potential identifiers
+      const bannedEmail = email || localStorage.getItem('banned_email');
+      const bannedIP = localStorage.getItem('banned_ip');
+      const bannedDevice = localStorage.getItem('banned_device');
+
+      // Server-side ban check with ALL identifiers
+      const response = await fetch(`${API_URL}/voter/security/check-ban`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: bannedEmail }),
+        body: JSON.stringify({
+          email: bannedEmail,
+          ipAddress: clientIP,
+          deviceId: deviceFingerprint,
+          userAgent: userAgent
+        }),
       });
 
       const data = await response.json();
       
-      // Check if user is banned
-      if (data.violations?.ipViolations >= 15 || data.violations?.emailViolations >= 10) {
+      // 🚨 BAN DETECTED - Multiple vectors
+      if (data.isBanned) {
         setIsBanned(true);
         setBanInfo({
-          ipViolations: data.violations.ipViolations,
-          emailViolations: data.violations.emailViolations,
+          ipViolations: data.violations?.ipViolations || 0,
+          emailViolations: data.violations?.emailViolations || 0,
+          deviceViolations: data.violations?.deviceViolations || 0,
           retryAfter: data.retryAfter || 86400,
-          email: bannedEmail,
-          timestamp: new Date().toISOString()
+          email: data.bannedEmail || bannedEmail,
+          ipAddress: data.bannedIP || clientIP,
+          deviceId: data.bannedDevice || deviceFingerprint,
+          userAgent: userAgent,
+          timestamp: new Date().toISOString(),
+          banType: data.banType || 'hybrid',
+          banReason: data.banReason || 'Multiple security violations detected'
         });
         
-        // Persist ban state
+        // Persist ALL ban identifiers
+        if (data.bannedEmail) localStorage.setItem('banned_email', data.bannedEmail);
+        if (data.bannedIP) localStorage.setItem('banned_ip', data.bannedIP);
+        if (data.bannedDevice) localStorage.setItem('banned_device', data.bannedDevice);
         localStorage.setItem('ban_active', 'true');
-        localStorage.setItem('banned_email', bannedEmail);
         localStorage.setItem('ban_timestamp', new Date().toISOString());
         
         // Clear any existing session
@@ -83,29 +161,37 @@ function App() {
       } else {
         // No active ban
         setIsBanned(false);
-        localStorage.removeItem('ban_active');
-        localStorage.removeItem('banned_email');
-        localStorage.removeItem('ban_timestamp');
+        ['ban_active', 'banned_email', 'banned_ip', 'banned_device', 'ban_timestamp'].forEach(
+          key => localStorage.removeItem(key)
+        );
       }
     } catch (error) {
       console.error('Ban check failed:', error);
-      // If we can't check ban status, err on side of caution
-      if (localStorage.getItem('ban_active') === 'true') {
-        setIsBanned(true);
-      }
+      // Conservative approach - if we can't check, assume not banned
+      setIsBanned(false);
     } finally {
       setBanCheckComplete(true);
     }
   };
 
-  // 🔴 Check ban status on app load
+  // 🔴 Initialize security on app load
   useEffect(() => {
-    const initializeApp = async () => {
+    const initializeSecurity = async () => {
+      setLoading(true);
+      
+      // Generate device fingerprint
+      generateDeviceFingerprint();
+      
+      // Get client IP
+      await getClientIP();
+      
+      // Check ban status with all identifiers
       await checkBanStatus();
+      
       setLoading(false);
     };
     
-    initializeApp();
+    initializeSecurity();
   }, []);
 
   // 🔴 Clear ban state on successful login
@@ -114,13 +200,20 @@ function App() {
     setBanInfo({
       ipViolations: 0,
       emailViolations: 0,
+      deviceViolations: 0,
       retryAfter: 86400,
       email: null,
-      timestamp: null
+      ipAddress: null,
+      deviceId: null,
+      userAgent: null,
+      timestamp: null,
+      banType: 'email',
+      banReason: ''
     });
-    localStorage.removeItem('ban_active');
-    localStorage.removeItem('banned_email');
-    localStorage.removeItem('ban_timestamp');
+    
+    ['ban_active', 'banned_email', 'banned_ip', 'banned_device', 'ban_timestamp'].forEach(
+      key => localStorage.removeItem(key)
+    );
   };
 
   useEffect(() => {
@@ -162,7 +255,6 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Start rate limit timer if rate limited
     if (isRateLimited && rateLimitTimer > 0) {
       rateLimitTimerRef.current = setInterval(() => {
         setRateLimitTimer(prev => {
@@ -258,20 +350,32 @@ function App() {
     fetchSystemStatus();
   };
 
-  // 🔴 PUBLIC METHOD: Call this when a login fails with ban threshold
-  const handleBanTrigger = async (email, violations) => {
+  // 🚨 ENHANCED BAN TRIGGER - Multi-factor ban
+  const handleBanTrigger = async (email, violations, ipAddress = null, deviceId = null) => {
+    const deviceFingerprint = deviceId || localStorage.getItem('device_fingerprint') || generateDeviceFingerprint();
+    const clientIP = ipAddress || localStorage.getItem('client_ip') || await getClientIP();
+    const userAgent = navigator.userAgent;
+
     setIsBanned(true);
     setBanInfo({
       ipViolations: violations.ipViolations || 0,
       emailViolations: violations.emailViolations || 0,
+      deviceViolations: violations.deviceViolations || 0,
       retryAfter: 86400,
       email: email,
-      timestamp: new Date().toISOString()
+      ipAddress: clientIP,
+      deviceId: deviceFingerprint,
+      userAgent: userAgent,
+      timestamp: new Date().toISOString(),
+      banType: 'hybrid',
+      banReason: 'Excessive failed login attempts across multiple identifiers'
     });
     
-    // Persist ban state
+    // Persist ALL ban identifiers
     localStorage.setItem('ban_active', 'true');
     localStorage.setItem('banned_email', email);
+    localStorage.setItem('banned_ip', clientIP);
+    localStorage.setItem('banned_device', deviceFingerprint);
     localStorage.setItem('ban_timestamp', new Date().toISOString());
     
     // Sign out any existing session
@@ -287,7 +391,7 @@ function App() {
             <Lock className="h-10 w-10 text-red-300" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">System Locked</h1>
-          <p className="text-rose-200">Security protocol activated</p>
+          <p className="text-rose-200">Temporary security measure</p>
         </div>
 
         <div className="space-y-6">
@@ -297,7 +401,7 @@ function App() {
               <h2 className="text-xl font-bold text-white">Rate Limit Exceeded</h2>
             </div>
             <p className="text-red-100 mb-4">
-              Multiple failed login attempts detected. This is a security measure to prevent unauthorized access.
+              Multiple failed attempts detected. This is a temporary security measure.
             </p>
             <div className="flex items-center justify-between bg-red-900/30 p-4 rounded-xl">
               <div className="flex items-center gap-2">
@@ -312,12 +416,12 @@ function App() {
 
           <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-300 mt-0.5" />
+              <Fingerprint className="h-5 w-5 text-amber-300 mt-0.5" />
               <div>
-                <p className="text-amber-100 font-medium mb-1">Security Notice</p>
+                <p className="text-amber-100 font-medium mb-1">Security Protocol</p>
                 <p className="text-amber-200/80 text-sm">
-                  System will automatically unlock in {rateLimitTimer} seconds. 
-                  This incident has been logged for security review.
+                  Your IP address and device signature have been temporarily restricted.
+                  System will unlock automatically.
                 </p>
               </div>
             </div>
@@ -338,30 +442,37 @@ function App() {
 
         <div className="mt-8 pt-6 border-t border-white/10">
           <p className="text-center text-white/50 text-sm">
-            Security Protocol • Incident #{Date.now().toString().slice(-6)}
+            Security Incident • ID: {Date.now().toString().slice(-8)}
           </p>
         </div>
       </div>
     </div>
   );
 
-  // 🚨🚨🚨 CRITICAL: BAN CHECK - This runs BEFORE any routes are rendered 🚨🚨🚨
+  // 🚨🚨🚨 CRITICAL: BAN CHECK BEFORE ANY RENDERING 🚨🚨🚨
   if (loading || !banCheckComplete) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900">
         <WaveLoader />
-        <p className="mt-4 text-gray-400">Checking security status...</p>
+        <div className="mt-6 flex items-center gap-2 text-gray-400">
+          <Shield className="h-4 w-4" />
+          <p>Verifying security status...</p>
+        </div>
       </div>
     );
   }
 
-  // 🚨🚨🚨 HIGHEST PRIORITY: If user is BANNED, show BanScreen and block EVERYTHING 🚨🚨🚨
+  // 🚨🚨🚨 HIGHEST PRIORITY: PERMANENT BAN - IP + DEVICE + EMAIL 🚨🚨🚨
   if (isBanned) {
     return (
       <BanScreen 
         failedAttempts={banInfo.emailViolations || 15}
         banTimeRemaining={banInfo.retryAfter || 86400}
         email={banInfo.email}
+        ipAddress={banInfo.ipAddress}
+        deviceId={banInfo.deviceId}
+        banType={banInfo.banType}
+        banReason={banInfo.banReason}
         timestamp={banInfo.timestamp}
       />
     );
@@ -372,7 +483,6 @@ function App() {
     return <RateLimitedScreen />;
   }
 
-  // 🚨 Pass ban trigger function down to LandingPage
   return (
     <>
       {rateLimitInfo?.warning && (
@@ -408,6 +518,8 @@ function App() {
               <LandingPage 
                 onBanTrigger={handleBanTrigger}
                 checkBanStatus={checkBanStatus}
+                deviceFingerprint={localStorage.getItem('device_fingerprint')}
+                clientIP={localStorage.getItem('client_ip')}
               /> : 
               <SystemLocked />
             } 
