@@ -1,3 +1,4 @@
+import { Ban, ShieldAlert, Clock, AlertCircle } from 'lucide-react';
 const BanScreen=()=>{
     return(
          <div className="min-h-screen bg-gradient-to-br from-red-900 to-rose-900 flex items-center justify-center p-6 font-sans">

@@ -28,9 +28,8 @@ function App() {
   const [isRateLimited, setIsRateLimited] = useState(false);
   const [rateLimitTimer, setRateLimitTimer] = useState(0);
   const rateLimitTimerRef = useRef(null);
-  
-  // 🔴 ENHANCED BAN STATE - Multiple identifiers
   const [isBanned, setIsBanned] = useState(false);
+
   const [banInfo, setBanInfo] = useState({
     ipViolations: 0,
     emailViolations: 0,
@@ -41,11 +40,11 @@ function App() {
     deviceId: null,
     userAgent: null,
     timestamp: null,
-    banType: 'email' // email, ip, device, hybrid
+    banType: 'email' 
   });
   const [banCheckComplete, setBanCheckComplete] = useState(false);
 
-  // 🔐 Generate persistent device fingerprint (survives browser restart)
+
   const generateDeviceFingerprint = () => {
     try {
       const canvas = document.createElement('canvas');
@@ -462,7 +461,7 @@ function App() {
     );
   }
 
-  // 🚨🚨🚨 HIGHEST PRIORITY: PERMANENT BAN - IP + DEVICE + EMAIL 🚨🚨🚨
+
   if (isBanned) {
     return (
       <BanScreen 
