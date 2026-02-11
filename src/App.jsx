@@ -9,8 +9,11 @@ import SystemLocked from './Pages/SytstemLocked';
 import WaveLoader from './Components/WaveLoader';
 import RequireAdminLogin from './States/authSession';
 import TestBackend from './Pages/TestBanckend';
+import BanScreen from './Pages/BanScreen'; // ✅ Import your BanScreen component
 import { AlertTriangle, Shield, Lock, AlertCircle } from 'lucide-react';
 
+// API URL - should be in env vars
+const API_URL = process.env.REACT_APP_API_URL || 'https://votifybackend-h0yt.onrender.com/api';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -26,6 +29,99 @@ function App() {
   const [isRateLimited, setIsRateLimited] = useState(false);
   const [rateLimitTimer, setRateLimitTimer] = useState(0);
   const rateLimitTimerRef = useRef(null);
+  
+  // 🔴 NEW: Ban state - this blocks ENTIRE application
+  const [isBanned, setIsBanned] = useState(false);
+  const [banInfo, setBanInfo] = useState({
+    ipViolations: 0,
+    emailViolations: 0,
+    retryAfter: 86400,
+    email: null,
+    timestamp: null
+  });
+  const [banCheckComplete, setBanCheckComplete] = useState(false);
+
+  // 🔴 CRITICAL: Check for ban on app start and after failed logins
+  const checkBanStatus = async (email = null) => {
+    try {
+      // If no email provided, try to get from localStorage (persist ban state)
+      const bannedEmail = email || localStorage.getItem('banned_email');
+      
+      if (!bannedEmail) {
+        setIsBanned(false);
+        setBanCheckComplete(true);
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/voter/login-check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: bannedEmail }),
+      });
+
+      const data = await response.json();
+      
+      // Check if user is banned
+      if (data.violations?.ipViolations >= 15 || data.violations?.emailViolations >= 10) {
+        setIsBanned(true);
+        setBanInfo({
+          ipViolations: data.violations.ipViolations,
+          emailViolations: data.violations.emailViolations,
+          retryAfter: data.retryAfter || 86400,
+          email: bannedEmail,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Persist ban state
+        localStorage.setItem('ban_active', 'true');
+        localStorage.setItem('banned_email', bannedEmail);
+        localStorage.setItem('ban_timestamp', new Date().toISOString());
+        
+        // Clear any existing session
+        await supabase.auth.signOut();
+        setSession(null);
+      } else {
+        // No active ban
+        setIsBanned(false);
+        localStorage.removeItem('ban_active');
+        localStorage.removeItem('banned_email');
+        localStorage.removeItem('ban_timestamp');
+      }
+    } catch (error) {
+      console.error('Ban check failed:', error);
+      // If we can't check ban status, err on side of caution
+      if (localStorage.getItem('ban_active') === 'true') {
+        setIsBanned(true);
+      }
+    } finally {
+      setBanCheckComplete(true);
+    }
+  };
+
+  // 🔴 Check ban status on app load
+  useEffect(() => {
+    const initializeApp = async () => {
+      await checkBanStatus();
+      setLoading(false);
+    };
+    
+    initializeApp();
+  }, []);
+
+  // 🔴 Clear ban state on successful login
+  const clearBanState = () => {
+    setIsBanned(false);
+    setBanInfo({
+      ipViolations: 0,
+      emailViolations: 0,
+      retryAfter: 86400,
+      email: null,
+      timestamp: null
+    });
+    localStorage.removeItem('ban_active');
+    localStorage.removeItem('banned_email');
+    localStorage.removeItem('ban_timestamp');
+  };
 
   useEffect(() => {
     if (rateLimitTimerRef.current) {
@@ -48,10 +144,8 @@ function App() {
       setSession(session);
     });
 
- 
     fetchSystemStatus();
 
- 
     pollIntervalRef.current = setInterval(() => {
       fetchSystemStatus();
     }, 5000);
@@ -131,7 +225,6 @@ function App() {
       timestamp: new Date().toISOString()
     });
 
-    // Log the violation
     console.warn(`Rate limit violation detected. Locking system for ${retryAfter} seconds.`);
   };
 
@@ -149,11 +242,9 @@ function App() {
     const newAttempts = loginAttempts + 1;
     setLoginAttempts(newAttempts);
 
-    // Trigger rate limiting after 5 failed attempts
     if (newAttempts >= 5) {
-      handleRateLimitViolation(300); // 5 minutes lock
+      handleRateLimitViolation(300);
     } else if (newAttempts >= 3) {
-      // Warning after 3 attempts
       setRateLimitInfo({
         message: `Warning: ${5 - newAttempts} more failed attempts will lock the system.`,
         warning: true
@@ -167,7 +258,27 @@ function App() {
     fetchSystemStatus();
   };
 
-  // Rate Limited Screen Component
+  // 🔴 PUBLIC METHOD: Call this when a login fails with ban threshold
+  const handleBanTrigger = async (email, violations) => {
+    setIsBanned(true);
+    setBanInfo({
+      ipViolations: violations.ipViolations || 0,
+      emailViolations: violations.emailViolations || 0,
+      retryAfter: 86400,
+      email: email,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Persist ban state
+    localStorage.setItem('ban_active', 'true');
+    localStorage.setItem('banned_email', email);
+    localStorage.setItem('ban_timestamp', new Date().toISOString());
+    
+    // Sign out any existing session
+    await supabase.auth.signOut();
+    setSession(null);
+  };
+
   const RateLimitedScreen = () => (
     <div className="min-h-screen bg-gradient-to-br from-red-900 to-rose-900 flex items-center justify-center p-6">
       <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-3xl p-8 max-w-lg w-full shadow-2xl">
@@ -234,23 +345,36 @@ function App() {
     </div>
   );
 
-  if (loading) {
+  // 🚨🚨🚨 CRITICAL: BAN CHECK - This runs BEFORE any routes are rendered 🚨🚨🚨
+  if (loading || !banCheckComplete) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900">
         <WaveLoader />
-        <p className="mt-4 text-gray-400">Initializing secure system...</p>
+        <p className="mt-4 text-gray-400">Checking security status...</p>
       </div>
     );
   }
 
-  // Show rate limited screen if rate limited
+  // 🚨🚨🚨 HIGHEST PRIORITY: If user is BANNED, show BanScreen and block EVERYTHING 🚨🚨🚨
+  if (isBanned) {
+    return (
+      <BanScreen 
+        failedAttempts={banInfo.emailViolations || 15}
+        banTimeRemaining={banInfo.retryAfter || 86400}
+        email={banInfo.email}
+        timestamp={banInfo.timestamp}
+      />
+    );
+  }
+
+  // Secondary: Show rate limited screen
   if (isRateLimited) {
     return <RateLimitedScreen />;
   }
 
+  // 🚨 Pass ban trigger function down to LandingPage
   return (
     <>
-      {/* Rate Limit Warning Banner */}
       {rateLimitInfo?.warning && (
         <div className="fixed top-4 right-4 z-50 bg-amber-500/10 border border-amber-500/30 text-amber-200 px-6 py-4 rounded-2xl shadow-2xl max-w-sm animate-in slide-in-from-right">
           <div className="flex items-center gap-3">
@@ -263,7 +387,6 @@ function App() {
         </div>
       )}
 
-      {/* Error Banner */}
       {error && (
         <div className="fixed top-4 left-4 z-50 bg-red-500/10 border border-red-500/30 text-red-200 px-6 py-4 rounded-2xl shadow-2xl max-w-sm">
           <div className="flex items-center gap-3">
@@ -278,9 +401,33 @@ function App() {
 
       <Router>
         <Routes>
-          <Route path="/" element={isSystemActive ? <LandingPage /> : <SystemLocked />} />
-          <Route path="/user" element={isSystemActive ? <UserPortal /> : <Navigate to="/" />} />
-          <Route path="/aspirant" element={isSystemActive ? <AspirantRegistration /> : <Navigate to="/" />} />
+          <Route 
+            path="/" 
+            element={
+              isSystemActive ? 
+              <LandingPage 
+                onBanTrigger={handleBanTrigger}
+                checkBanStatus={checkBanStatus}
+              /> : 
+              <SystemLocked />
+            } 
+          />
+          <Route 
+            path="/user" 
+            element={
+              isSystemActive && !isBanned ? 
+              <UserPortal /> : 
+              <Navigate to="/" />
+            } 
+          />
+          <Route 
+            path="/aspirant" 
+            element={
+              isSystemActive && !isBanned ? 
+              <AspirantRegistration /> : 
+              <Navigate to="/" />
+            } 
+          />
           <Route
             path="/admin"
             element={

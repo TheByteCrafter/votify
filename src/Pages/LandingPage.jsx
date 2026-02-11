@@ -5,7 +5,7 @@ import { supabase } from '../../supabase';
 
 const API_URL = 'https://votifybackend-h0yt.onrender.com/api';
 
-export default function LandingPage() {
+export default function LandingPage({ onBanTrigger, checkBanStatus }) {
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -13,164 +13,154 @@ export default function LandingPage() {
     const [loading, setLoading] = useState(false);
     const [securityWarning, setSecurityWarning] = useState('');
 
-   const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSecurityWarning('');
-    setLoading(true);
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSecurityWarning('');
+        setLoading(true);
 
-    try {
-        // Step 1: Check rate limiting AND ban status
-        const rateLimitCheck = await fetch(`${API_URL}/voter/login-check`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email }),
-        });
-
-        const checkData = await rateLimitCheck.json();
-        
-        // 🚨 CHECK FOR BAN FIRST - Most severe
-        if (checkData.violations?.ipViolations >= 15 || checkData.violations?.emailViolations >= 10) {
-            setError(`
-                🚫 ACCOUNT TEMPORARILY LOCKED 
-                
-                Your access has been restricted due to multiple failed login attempts.
-                
-                ⏰ Lock expires: 24 hours from last failed attempt
-                📧 Contact administrator for immediate assistance
-                
-                Security Measure - Votify EMS
-            `);
-            setLoading(false);
-            return; // COMPLETE BLOCK - No further attempts allowed
-        }
-
-        // Step 2: Check if rate limited (but not banned)
-        if (!rateLimitCheck.ok) {
-            if (checkData.rateLimited) {
-                const hours = Math.floor(checkData.retryAfter / 3600);
-                const minutes = Math.floor((checkData.retryAfter % 3600) / 60);
-                
-                let timeMessage = '';
-                if (hours > 0) timeMessage += `${hours} hour${hours > 1 ? 's' : ''} `;
-                if (minutes > 0) timeMessage += `${minutes} minute${minutes > 1 ? 's' : ''}`;
-                
-                setError(`⏰ Too many attempts. Try again in ${timeMessage.trim()}.`);
-                setLoading(false);
-                return;
-            }
-            setError('⚠️ Security verification failed.');
-            setLoading(false);
-            return;
-        }
-
-        // Step 3: Progressive warnings
-        const ipWarnings = checkData.violations?.ipViolations;
-        const emailWarnings = checkData.violations?.emailViolations;
-        
-        if (ipWarnings >= 12 || emailWarnings >= 8) {
-            setSecurityWarning(`
-                ⚠️ FINAL WARNING: ${3 - (15 - ipWarnings)} attempts remaining before 24-hour LOCKOUT
-                • Incorrect credentials will result in automatic ban
-                • Contact administrator if you've forgotten your password
-            `);
-        } else if (ipWarnings >= 8 || emailWarnings >= 5) {
-            setSecurityWarning(`
-                ⚠️ SECURITY ALERT: ${5 - (10 - emailWarnings)} failed attempts recorded
-                • Multiple failures will trigger temporary account lock
-                • Verify your credentials before continuing
-            `);
-        }
-
-        // Step 4: Attempt authentication
-        const { data, error: supabaseError } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
-            password: password
-        });
-
-        // Step 5: Handle authentication failure
-        if (supabaseError) {
-            // Track failed attempt (this will increment the violation counter)
-            await fetch(`${API_URL}/voter/login-failed`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email }),
-            }).catch(() => {}); 
-            
-            // Get updated violation count after tracking
-            const updatedCheck = await fetch(`${API_URL}/voter/login-check`, {
+        try {
+            // Step 1: Check rate limiting AND ban status
+            const rateLimitCheck = await fetch(`${API_URL}/voter/login-check`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email }),
             });
-            const updatedData = await updatedCheck.json();
-            
-            // 🚨 CHECK IF THIS ATTEMPT CAUSED A BAN
-            if (updatedData.violations?.ipViolations >= 15 || updatedData.violations?.emailViolations >= 10) {
-                setError(`
-                    🚫 ACCOUNT LOCKED - SECURITY MEASURE ACTIVATED
-                    
-                    ⚠️ REASON: Maximum failed login attempts exceeded (${updatedData.violations?.ipViolations || updatedData.violations?.emailViolations} violations)
-                    
-                    🔒 DURATION: 24 hours from now
-                    📧 SUPPORT: admin@votify.com
-                    🔑 RESET: Password reset unavailable during lockout
-                    
-                    This is an automated security feature. Contact system administrator for immediate assistance.
-                `);
+
+            const checkData = await rateLimitCheck.json();
+
+            // 🚨 CHECK FOR PRE-EXISTING BAN - Using checkData, not updatedData
+            if (checkData.violations?.ipViolations >= 15 || checkData.violations?.emailViolations >= 10) {
+                // User is already banned - trigger global ban immediately
+                onBanTrigger(email, checkData.violations);
                 setLoading(false);
                 return;
             }
-            
-            // Show appropriate error message for non-ban failures
-            if (supabaseError.message.includes('Invalid login credentials')) {
-                const remainingAttempts = 10 - (updatedData.violations?.emailViolations || 0);
-                setError(`❌ Invalid email or password. ${remainingAttempts} attempts remaining before 24-hour lockout.`);
-            } else if (supabaseError.message.includes('Email not confirmed')) {
-                setError('📧 Please verify your email before logging in. Check your inbox for confirmation link.');
-            } else {
-                setError(`❌ Login failed: ${supabaseError.message}`);
-            }
-            
-            setLoading(false);
-            return;
-        }
 
-        // Step 6: SUCCESS - Reset violations and navigate
-        await fetch(`${API_URL}/voter/login-success`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email }),
-        }).catch(() => {});
-        
-        // Clear any existing warnings
-        setSecurityWarning('');
-        setError('');
-        
-        // Full system access granted
-        navigate('/user', { 
-            state: { 
-                welcome: true,
-                message: '✅ Secure access granted. Welcome to Votify EMS.'
-            } 
-        });
-        
-    } catch (err) {
-        console.error('Login system error:', err);
-        setError(`
-            🔴 SYSTEM UNAVAILABLE
+            // Step 2: Check if rate limited (but not banned)
+            if (!rateLimitCheck.ok) {
+                if (checkData.rateLimited) {
+                    const hours = Math.floor(checkData.retryAfter / 3600);
+                    const minutes = Math.floor((checkData.retryAfter % 3600) / 60);
+
+                    let timeMessage = '';
+                    if (hours > 0) timeMessage += `${hours} hour${hours > 1 ? 's' : ''} `;
+                    if (minutes > 0) timeMessage += `${minutes} minute${minutes > 1 ? 's' : ''}`;
+
+                    setError(`⏰ Too many attempts. Try again in ${timeMessage.trim()}.`);
+                    setLoading(false);
+                    return;
+                }
+                setError('⚠️ Security verification failed.');
+                setLoading(false);
+                return;
+            }
+
+            // Step 3: Progressive warnings
+            const ipWarnings = checkData.violations?.ipViolations || 0;
+            const emailWarnings = checkData.violations?.emailViolations || 0;
+
+            if (ipWarnings >= 12 || emailWarnings >= 8) {
+                const remainingAttempts = 15 - ipWarnings;
+                setSecurityWarning(
+                    `⚠️ FINAL WARNING: ${remainingAttempts} attempt${remainingAttempts !== 1 ? 's' : ''} remaining before 24-hour LOCKOUT
+• Incorrect credentials will result in automatic ban
+• Contact administrator if you've forgotten your password`
+                );
+            } else if (ipWarnings >= 8 || emailWarnings >= 5) {
+                const remainingAttempts = 10 - emailWarnings;
+                setSecurityWarning(
+                    `⚠️ SECURITY ALERT: ${remainingAttempts} attempt${remainingAttempts !== 1 ? 's' : ''} remaining
+• Multiple failures will trigger temporary account lock
+• Verify your credentials before continuing`
+                );
+            }
+
+            // Step 4: Attempt authentication
+            const { data, error: supabaseError } = await supabase.auth.signInWithPassword({
+                email: email.trim(),
+                password: password
+            });
+
+            // Step 5: Handle authentication failure
+            if (supabaseError) {
+                // Track failed attempt (this will increment the violation counter)
+                await fetch(`${API_URL}/voter/login-failed`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
+                }).catch(() => { });
+
+                // Get UPDATED violation count after tracking
+                const updatedCheck = await fetch(`${API_URL}/voter/login-check`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
+                });
+                const updatedData = await updatedCheck.json();
+
+                // 🚨 CHECK IF THIS ATTEMPT CAUSED A BAN - NOW updatedData EXISTS
+                if (updatedData.violations?.ipViolations >= 15 || updatedData.violations?.emailViolations >= 10) {
+                    // TRIGGER GLOBAL BAN - This will show BanScreen and block ALL routes
+                    onBanTrigger(email, updatedData.violations);
+                    setLoading(false);
+                    return;
+                }
+
+                // Show appropriate error message for non-ban failures
+                if (supabaseError.message.includes('Invalid login credentials')) {
+                    const remainingAttempts = 10 - (updatedData.violations?.emailViolations || 0);
+                    setError(`❌ Invalid email or password. ${remainingAttempts} attempt${remainingAttempts !== 1 ? 's' : ''} remaining before 24-hour lockout.`);
+                } else if (supabaseError.message.includes('Email not confirmed')) {
+                    setError('📧 Please verify your email before logging in. Check your inbox for confirmation link.');
+                } else {
+                    setError(`❌ Login failed: ${supabaseError.message}`);
+                }
+
+                setLoading(false);
+                return;
+            }
+
+            // Step 6: SUCCESS - Reset violations and navigate
+            await fetch(`${API_URL}/voter/login-success`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            }).catch(() => { });
+
+            // Clear ban state on successful login
+            if (checkBanStatus) {
+                await checkBanStatus(email); // This will clear the ban if it existed
+            }
+
+            // Clear any existing warnings
+            setSecurityWarning('');
+            setError('');
+
+            // Full system access granted
+            navigate('/user', {
+                state: {
+                    welcome: true,
+                    message: '✅ Secure access granted. Welcome to Votify EMS.'
+                }
+            });
+
+        } catch (err) {
+            console.error('Login system error:', err);
+            setError(
+                `🔴 SYSTEM UNAVAILABLE
             
-            Unable to connect to the secure authentication service.
+Unable to connect to the secure authentication service.
             
-            • Check your internet connection
-            • Try again in a few minutes
-            • Contact support if issue persists
+• Check your internet connection
+• Try again in a few minutes
+• Contact support if issue persists
             
-            Error: ${err.message || 'Connection failed'}
-        `);
-        setLoading(false);
-    }
-};
+Error: ${err.message || 'Connection failed'}`
+            );
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
@@ -191,7 +181,7 @@ export default function LandingPage() {
                     </div>
 
                     {error && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl">
+                        <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl whitespace-pre-line">
                             <div className="flex items-start gap-2">
                                 <AlertCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
                                 <p className="text-red-700 text-sm font-medium">{error}</p>
@@ -200,7 +190,7 @@ export default function LandingPage() {
                     )}
 
                     {securityWarning && (
-                        <div className="mb-4 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                        <div className="mb-4 p-3 bg-amber-50 border border-amber-100 rounded-xl whitespace-pre-line">
                             <div className="flex items-start gap-2">
                                 <AlertCircle size={16} className="text-amber-500 mt-0.5 shrink-0" />
                                 <p className="text-amber-700 text-sm font-medium">{securityWarning}</p>
@@ -264,7 +254,7 @@ export default function LandingPage() {
                             <Shield size={12} className="inline mr-1" />
                             Protected by advanced rate limiting and security monitoring
                         </p>
-                        
+
                         <button
                             onClick={() => navigate('/admin')}
                             className="text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors"

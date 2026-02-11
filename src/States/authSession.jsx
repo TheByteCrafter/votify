@@ -61,7 +61,7 @@ function RequireAdminLogin({
         throw new Error(data.error || 'Login failed');
       }
 
-      // Successful login - reset attempts
+     
       if (resetLoginAttempts) {
         resetLoginAttempts();
       }
