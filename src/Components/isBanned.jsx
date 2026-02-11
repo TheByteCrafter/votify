@@ -1,5 +1,5 @@
 import { Ban, ShieldAlert, Clock, AlertCircle } from 'lucide-react';
-const BanScreen=()=>{
+const BanScreen = ({ failedAttempts, banTimeRemaining }) => {
     return(
          <div className="min-h-screen bg-gradient-to-br from-red-900 to-rose-900 flex items-center justify-center p-6 font-sans">
         <div className="w-full max-w-lg bg-white/10 backdrop-blur-lg border border-white/20 rounded-3xl p-8 shadow-2xl">
