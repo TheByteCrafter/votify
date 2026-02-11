@@ -9,7 +9,7 @@ import SystemLocked from './Pages/SytstemLocked';
 import WaveLoader from './Components/WaveLoader';
 import RequireAdminLogin from './States/authSession';
 import TestBackend from './Pages/TestBanckend';
-import BanScreen from './Pages/BanScreen'; // ✅ Import your BanScreen component
+import BanScreen from './Components/isBanned';
 import { AlertTriangle, Shield, Lock, AlertCircle } from 'lucide-react';
 
 // API URL - should be in env vars
