@@ -40,7 +40,7 @@ function App() {
     deviceId: null,
     userAgent: null,
     timestamp: null,
-    banType: 'email' 
+    banType: 'email'
   });
   const [banCheckComplete, setBanCheckComplete] = useState(false);
 
@@ -50,7 +50,7 @@ function App() {
       const canvas = document.createElement('canvas');
       const gl = canvas.getContext('webgl');
       const debugInfo = gl?.getExtension('WEBGL_debug_renderer_info');
-      
+
       const components = [
         navigator.userAgent,
         navigator.language,
@@ -66,10 +66,10 @@ function App() {
 
       // Create a hash
       const fingerprint = btoa(components.join('|')).replace(/=/g, '');
-      
+
       // Store in localStorage as backup but server is primary
       localStorage.setItem('device_fingerprint', fingerprint);
-      
+
       return fingerprint;
     } catch (e) {
       // Fallback fingerprint
@@ -79,9 +79,9 @@ function App() {
     }
   };
 
-  // 🔐 Get client IP through multiple services (redundant)
+
   const getClientIP = async () => {
-    // Try multiple IP services for redundancy
+
     const ipServices = [
       'https://api.ipify.org?format=json',
       'https://api.my-ip.io/ip.json',
@@ -110,26 +110,24 @@ function App() {
       const deviceFingerprint = deviceId || localStorage.getItem('device_fingerprint') || generateDeviceFingerprint();
       const clientIP = ip || localStorage.getItem('client_ip') || await getClientIP();
       const userAgent = navigator.userAgent;
-      
+
       // Get all potential identifiers
       const bannedEmail = email || localStorage.getItem('banned_email');
       const bannedIP = localStorage.getItem('banned_ip');
       const bannedDevice = localStorage.getItem('banned_device');
 
       // Server-side ban check with ALL identifiers
-      const response = await fetch(`${API_URL}/voter/security/check-ban`, {
+      const response = await fetch(`${API_URL}/voter/check-ban-status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: bannedEmail,
-          ipAddress: clientIP,
-          deviceId: deviceFingerprint,
-          userAgent: userAgent
+          ip: clientIP  
         }),
       });
 
       const data = await response.json();
-      
+
       // 🚨 BAN DETECTED - Multiple vectors
       if (data.isBanned) {
         setIsBanned(true);
@@ -146,14 +144,14 @@ function App() {
           banType: data.banType || 'hybrid',
           banReason: data.banReason || 'Multiple security violations detected'
         });
-        
+
         // Persist ALL ban identifiers
         if (data.bannedEmail) localStorage.setItem('banned_email', data.bannedEmail);
         if (data.bannedIP) localStorage.setItem('banned_ip', data.bannedIP);
         if (data.bannedDevice) localStorage.setItem('banned_device', data.bannedDevice);
         localStorage.setItem('ban_active', 'true');
         localStorage.setItem('ban_timestamp', new Date().toISOString());
-        
+
         // Clear any existing session
         await supabase.auth.signOut();
         setSession(null);
@@ -177,19 +175,19 @@ function App() {
   useEffect(() => {
     const initializeSecurity = async () => {
       setLoading(true);
-      
+
       // Generate device fingerprint
       generateDeviceFingerprint();
-      
+
       // Get client IP
       await getClientIP();
-      
+
       // Check ban status with all identifiers
       await checkBanStatus();
-      
+
       setLoading(false);
     };
-    
+
     initializeSecurity();
   }, []);
 
@@ -209,7 +207,7 @@ function App() {
       banType: 'email',
       banReason: ''
     });
-    
+
     ['ban_active', 'banned_email', 'banned_ip', 'banned_device', 'ban_timestamp'].forEach(
       key => localStorage.removeItem(key)
     );
@@ -369,14 +367,14 @@ function App() {
       banType: 'hybrid',
       banReason: 'Excessive failed login attempts across multiple identifiers'
     });
-    
+
     // Persist ALL ban identifiers
     localStorage.setItem('ban_active', 'true');
     localStorage.setItem('banned_email', email);
     localStorage.setItem('banned_ip', clientIP);
     localStorage.setItem('banned_device', deviceFingerprint);
     localStorage.setItem('ban_timestamp', new Date().toISOString());
-    
+
     // Sign out any existing session
     await supabase.auth.signOut();
     setSession(null);
@@ -429,11 +427,10 @@ function App() {
           <button
             onClick={resetRateLimit}
             disabled={rateLimitTimer > 0}
-            className={`w-full py-4 px-6 rounded-2xl font-bold transition-all ${
-              rateLimitTimer > 0
+            className={`w-full py-4 px-6 rounded-2xl font-bold transition-all ${rateLimitTimer > 0
                 ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                 : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-            }`}
+              }`}
           >
             {rateLimitTimer > 0 ? 'System Locked' : 'Unlock System'}
           </button>
@@ -464,7 +461,7 @@ function App() {
 
   if (isBanned) {
     return (
-      <BanScreen 
+      <BanScreen
         failedAttempts={banInfo.emailViolations || 15}
         banTimeRemaining={banInfo.retryAfter || 86400}
         email={banInfo.email}
@@ -510,39 +507,39 @@ function App() {
 
       <Router>
         <Routes>
-          <Route 
-            path="/" 
+          <Route
+            path="/"
             element={
-              isSystemActive ? 
-              <LandingPage 
-                onBanTrigger={handleBanTrigger}
-                checkBanStatus={checkBanStatus}
-                deviceFingerprint={localStorage.getItem('device_fingerprint')}
-                clientIP={localStorage.getItem('client_ip')}
-              /> : 
-              <SystemLocked />
-            } 
+              isSystemActive ?
+                <LandingPage
+                  onBanTrigger={handleBanTrigger}
+                  checkBanStatus={checkBanStatus}
+                  deviceFingerprint={localStorage.getItem('device_fingerprint')}
+                  clientIP={localStorage.getItem('client_ip')}
+                /> :
+                <SystemLocked />
+            }
           />
-          <Route 
-            path="/user" 
+          <Route
+            path="/user"
             element={
-              isSystemActive && !isBanned ? 
-              <UserPortal /> : 
-              <Navigate to="/" />
-            } 
+              isSystemActive && !isBanned ?
+                <UserPortal /> :
+                <Navigate to="/" />
+            }
           />
-          <Route 
-            path="/aspirant" 
+          <Route
+            path="/aspirant"
             element={
-              isSystemActive && !isBanned ? 
-              <AspirantRegistration /> : 
-              <Navigate to="/" />
-            } 
+              isSystemActive && !isBanned ?
+                <AspirantRegistration /> :
+                <Navigate to="/" />
+            }
           />
           <Route
             path="/admin"
             element={
-              <RequireAdminLogin 
+              <RequireAdminLogin
                 refreshSystemStatus={refreshSystemStatus}
                 onRateLimitViolation={handleRateLimitViolation}
                 incrementLoginAttempts={incrementLoginAttempts}
