@@ -114,7 +114,7 @@ const AspirantPanel = () => {
             const { error } = await supabase
                 .from('user_votes')
                 .delete()
-                .neq('aspirant_id', null); 
+                .not('aspirant_id', 'is', null);
 
 
             if (error) throw error;
@@ -517,7 +517,7 @@ const AspirantPanel = () => {
                                     <div className="overflow-hidden flex-1 min-h-0">
                                         <div className="overflow-auto h-full">
                                             <table className="w-full">
-                                                <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
+                                                <thead className="bg-linear-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
                                                     <tr>
                                                         <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Candidate</th>
                                                         <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Party</th>
@@ -541,7 +541,7 @@ const AspirantPanel = () => {
                                                             >
                                                                 <td className="px-6 py-4">
                                                                     <div className="flex items-center gap-3">
-                                                                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-blue-600 font-bold">
+                                                                        <div className="h-10 w-10 rounded-full bg-linear-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-blue-600 font-bold">
                                                                             {aspirant.name.charAt(0)}
                                                                         </div>
                                                                         <div>
@@ -583,7 +583,7 @@ const AspirantPanel = () => {
                                                                         </p>
                                                                         <div className="w-full bg-gray-200 rounded-full h-2">
                                                                             <div
-                                                                                className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full transition-all duration-1000"
+                                                                                className="bg-linear-to-r from-blue-500 to-indigo-500 h-2 rounded-full transition-all duration-1000"
                                                                                 style={{ width: `${Math.min(100, percentage)}%` }}
                                                                             ></div>
                                                                         </div>
@@ -713,7 +713,7 @@ const AspirantPanel = () => {
                                             {voter.profile ? (
                                                 <div className="space-y-3">
                                                     <div className="flex items-start gap-3">
-                                                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center text-green-600 font-bold text-lg shrink-0">
+                                                        <div className="h-12 w-12 rounded-full bg-linear-to-br from-green-100 to-emerald-100 flex items-center justify-center text-green-600 font-bold text-lg shrink-0">
                                                             {voter.profile.full_name?.charAt(0) || '?'}
                                                         </div>
                                                         <div className="flex-1">
