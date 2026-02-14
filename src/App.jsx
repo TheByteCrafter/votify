@@ -12,7 +12,7 @@ import TestBackend from './Pages/TestBanckend';
 import BanScreen from './Components/isBanned';
 import { AlertTriangle, Shield, Lock, AlertCircle, Fingerprint, Globe, Cpu } from 'lucide-react';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://votifybackend-h0yt.onrender.com/api';
+const API_URL = import.meta.env.REACT_APP_API_URL || 'https://votifybackend-h0yt.onrender.com/api';
 
 function App() {
   const [session, setSession] = useState(null);
