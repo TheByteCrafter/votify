@@ -87,6 +87,14 @@ const AspirantPanel = ({
         console.log('Votes received in AspirantPanel:', votes);
     }, [votes]);
 
+    //run fetchData every 5 seconds to keep data fresh
+    useEffect(() => {
+        const interval = setInterval(() => {
+            onRefresh();
+        }, 5000);
+        return () => clearInterval(interval);
+    }, [onRefresh]);
+
     const handleResetVotes = async () => {
         if (!window.confirm('Are you sure you want to reset all votes? This action cannot be undone.')) {
             return;
@@ -296,9 +304,7 @@ const AspirantPanel = ({
         <div className="flex-1 flex flex-col min-h-0">
 
             <div className="flex-1 flex flex-col min-h-0 p-4 md:p-6">
-                {/* Scrollable content area */}
                 <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-                    {/* Notifications - keep at top, not scrollable */}
                     {error && (
                         <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3 text-red-700 animate-in fade-in slide-in-from-top-2">
                             <AlertCircle size={20} className="shrink-0 mt-0.5" />
@@ -349,7 +355,6 @@ const AspirantPanel = ({
                         </div>
                     </div>
 
-                    {/* Action Bar - Fixed height, not scrollable */}
                     <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white p-6 rounded-3xl border border-slate-100 shadow-sm mb-6">
                         <div className="flex flex-col sm:flex-row gap-4 flex-1">
                             <div className="relative flex-1">
@@ -393,19 +398,16 @@ const AspirantPanel = ({
                         </div>
                     </div>
 
-                    {/* Aspirants Table - Scrollable area */}
+                    
                     <div className="flex-1 min-h-0">
-                        {/* Loading State */}
                         {loading && aspirants.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-24 text-slate-400">
                                 <Loader2 size={40} className="animate-spin mb-4 text-blue-500" />
                                 <p className="font-bold uppercase tracking-widest text-xs">Loading candidates...</p>
                             </div>
                         ) : (
-                            /* Aspirants Table Container */
                             <div className="flex-1 min-h-0">
                                 <div className="rounded-2xl bg-white border border-gray-200 shadow-lg overflow-hidden h-full flex flex-col">
-                                    {/* Table with fixed header and scrollable body */}
                                     <div className="overflow-hidden flex-1 min-h-0">
                                         <div className="overflow-auto h-full">
                                             <table className="w-full">
@@ -560,7 +562,7 @@ const AspirantPanel = ({
                             </button>
                         </div>
 
-                        {/* Search bar in modal */}
+                        
                         <div className="p-4 border-b border-gray-200">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
