@@ -81,7 +81,7 @@ const AspirantPanel = () => {
 
 
     useEffect(() => {
-        // Poll every 5 seconds as a fallback
+        // Poll every 5 seconds 
         const pollInterval = setInterval(() => {
             console.log('Polling for vote updates...');
             fetchData();
