@@ -79,6 +79,18 @@ const AspirantPanel = () => {
         console.log('Votes state updated:', votes);
     }, [votes]);
 
+
+    useEffect(() => {
+        // Poll every 5 seconds as a fallback
+        const pollInterval = setInterval(() => {
+            console.log('Polling for vote updates...');
+            fetchData();
+        }, 5000);
+
+        return () => clearInterval(pollInterval);
+    }, []);
+
+
     const setupRealtimeSubscription = () => {
         try {
             const subscription = supabase

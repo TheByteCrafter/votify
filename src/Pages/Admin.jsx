@@ -562,7 +562,7 @@ export default function AdminPortal() {
                         <div className="space-y-8">
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                <div className="rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 p-6 text-white shadow-xl">
+                                <div className="rounded-2xl bg-linear-to-r from-blue-500 to-blue-600 p-6 text-white shadow-xl">
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <p className="text-sm font-medium opacity-90">Total Votes</p>
@@ -752,7 +752,7 @@ export default function AdminPortal() {
                             <div className="rounded-2xl bg-white border border-gray-200 shadow-lg overflow-hidden">
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
-                                        <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                                        <thead className="bg-linear-to-r from-gray-50 to-gray-100">
                                             <tr>
                                                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Applicant</th>
                                                 <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Position</th>

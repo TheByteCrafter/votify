@@ -332,7 +332,7 @@ const AdminSettings = () => {
 
                     <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
                         <button
-                            className={`flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-bold hover:shadow-lg transition-all flex items-center justify-center ${saving ? 'opacity-75 cursor-not-allowed' : ''}`}
+                            className={`flex-1 bg-linear-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-bold hover:shadow-lg transition-all flex items-center justify-center ${saving ? 'opacity-75 cursor-not-allowed' : ''}`}
                             onClick={saveAllSettings}
                             disabled={saving}
                         >
