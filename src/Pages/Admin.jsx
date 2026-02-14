@@ -39,7 +39,7 @@ export default function AdminPortal() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('dashboard');
     const [showAddModal, setShowAddModal] = useState(false);
-    
+
     const [stats, setStats] = useState({
         totalVotes: 0,
         totalVoters: 0,
@@ -58,7 +58,7 @@ export default function AdminPortal() {
         constituency: '',
         ward: ''
     });
- 
+
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'aspirants', label: 'Candidates', icon: UserCog },
@@ -137,14 +137,14 @@ export default function AdminPortal() {
     };
 
 
-   
+
     const [votingTrends, setVotingTrends] = useState([]);
     const [trendsLoading, setTrendsLoading] = useState(false);
 
     const fetchVotingTrends = async () => {
         setTrendsLoading(true);
         try {
-            
+
             const { data: votesData, error } = await supabase
                 .from('user_votes')
                 .select('voted_at');
@@ -152,14 +152,14 @@ export default function AdminPortal() {
             if (!error && votesData) {
                 const buckets = {};
 
-              
+
                 for (let hour = 0; hour < 24; hour++) {
                     const hourLabel = `${hour.toString().padStart(2, '0')}:00`;
                     buckets[hourLabel] = 0;
                 }
 
-               
-                
+
+
                 votesData.forEach(v => {
                     const date = new Date(v.voted_at);
                     const hourLabel = `${date.getHours().toString().padStart(2, '0')}:00`;
@@ -175,7 +175,7 @@ export default function AdminPortal() {
             }
         } catch (error) {
             console.error('Error fetching voting trends:', error);
-            
+
             const trends = generateTrendsFromTotalVotes(stats.totalVotes);
             setVotingTrends(trends);
         } finally {
@@ -204,12 +204,12 @@ export default function AdminPortal() {
         }
     }, [activeTab, stats.totalVotes]);
 
-  
+
     const chartTrendsData = useMemo(() => {
         if (votingTrends.length > 0) {
             return votingTrends;
         }
-     
+
         return generateSampleTrendsData();
     }, [votingTrends]);
 
@@ -264,55 +264,6 @@ export default function AdminPortal() {
         return () => subscription.unsubscribe();
     };
 
-    const handleAddAspirant = async (e) => {
-        e.preventDefault();
-        try {
-            const { error } = await supabase
-                .from('aspirants')
-                .insert([{
-                    name: formData.name,
-                    party: formData.party,
-                    seat: formData.seat,
-                    county: formData.county,
-                    constituency: formData.constituency,
-                    ward: formData.ward
-                }]);
-
-            if (error) throw error;
-            const { data: newAspirant } = await supabase
-                .from('aspirants')
-                .select('id')
-                .eq('name', formData.name)
-                .single();
-
-            if (newAspirant) {
-                await supabase
-                    .from('votes')
-                    .insert([{
-                        aspirant_id: newAspirant.id,
-                        count: 0
-                    }]);
-            }
-
-            setShowAddModal(false);
-            setFormData({
-                name: '',
-                party: '',
-                seat: 'Presidential',
-                county: '',
-                constituency: '',
-                ward: ''
-            });
-            fetchData();
-        } catch (error) {
-            console.error('Error adding aspirant:', error);
-            alert('Failed to add aspirant. Please try again.');
-        }
-    };
-
-
-
-    
 
     const handleApproveRegistration = async (registrationId) => {
         try {
@@ -380,7 +331,7 @@ export default function AdminPortal() {
         }
     };
 
-    
+
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -444,7 +395,7 @@ export default function AdminPortal() {
     };
 
 
-   
+
 
     const chartData = getChartData();
     const topAspirants = getTopAspirants();
@@ -708,10 +659,17 @@ export default function AdminPortal() {
 
 
                     {activeTab === 'aspirants' && (
-                        <AspirantPanel />
+                        <AspirantPanel
+                            aspirants={aspirants}
+                            votes={votes}
+                            registrations={registrations}
+                            profiles={profiles}
+                            onRefresh={fetchData}
+                            loading={loading}
+                        />
                     )}
 
-                   
+
                     {activeTab === 'registrations' && (
                         <div className="space-y-6">
                             {/* Registration Stats */}
@@ -1061,7 +1019,7 @@ export default function AdminPortal() {
                     )}
                 </main>
             </div>
-            
+
         </div>
     );
 }

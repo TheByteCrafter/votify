@@ -2,22 +2,25 @@ import React, { useEffect, useState } from 'react';
 import { Search, PlusCircle, RefreshCw, MapPin, Home, Edit2, Trash2, X, AlertCircle, Loader2, User, Mail, Phone, Calendar, Hash } from 'lucide-react';
 import { supabase } from '../../supabase';
 
-const AspirantPanel = () => {
+const AspirantPanel = ({ 
+    aspirants: propAspirants, 
+    votes: propVotes, 
+    registrations: propRegistrations,
+    profiles: propProfiles,
+    onRefresh,
+    loading: propLoading 
+}) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterSeat, setFilterSeat] = useState('all');
-    const [aspirants, setAspirants] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [registrations, setRegistrations] = useState([]);
-    const [votes, setVotes] = useState([]);
-    const [profiles, setProfiles] = useState([]);
-    const [stats, setStats] = useState({
-        totalVotes: 0,
-        totalVoters: 0,
-        totalAspirants: 0,
-        pendingRegistrations: 0,
-        approvedRegistrations: 0,
-        rejectedRegistrations: 0
-    });
+
+    // Use props directly instead of local state for data
+    const aspirants = propAspirants || [];
+    const votes = propVotes || {};
+    const registrations = propRegistrations || [];
+    const profiles = propProfiles || [];
+    const loading = propLoading || false;
+
+    // Local UI state only
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingAspirant, setEditingAspirant] = useState(null);
@@ -37,6 +40,16 @@ const AspirantPanel = () => {
     const [voterDetails, setVoterDetails] = useState([]);
     const [loadingVoters, setLoadingVoters] = useState(false);
     const [voterSearchTerm, setVoterSearchTerm] = useState('');
+
+    // Calculate stats from props
+    const stats = {
+        totalVotes: Object.values(votes).reduce((sum, count) => sum + count, 0),
+        totalVoters: profiles.length,
+        totalAspirants: aspirants.length,
+        pendingRegistrations: registrations.filter(r => r.status === 'pending').length,
+        approvedRegistrations: registrations.filter(r => r.status === 'approved').length,
+        rejectedRegistrations: registrations.filter(r => r.status === 'rejected').length
+    };
 
     const seats = [
         'Presidential',
@@ -60,12 +73,6 @@ const AspirantPanel = () => {
     ];
 
     useEffect(() => {
-        fetchData();
-        const subscription = setupRealtimeSubscription();
-        return () => subscription?.unsubscribe();
-    }, []);
-
-    useEffect(() => {
         if (error || success) {
             const timer = setTimeout(() => {
                 setError(null);
@@ -75,134 +82,10 @@ const AspirantPanel = () => {
         }
     }, [error, success]);
 
+    // Log votes changes for debugging
     useEffect(() => {
-        console.log('Votes state updated:', votes);
+        console.log('Votes received in AspirantPanel:', votes);
     }, [votes]);
-
-
-    useEffect(() => {
-        // Poll every 5 seconds 
-        const pollInterval = setInterval(() => {
-            console.log('Polling for vote updates...');
-            fetchData();
-        }, 5000);
-
-        return () => clearInterval(pollInterval);
-    }, []);
-
-
-    const setupRealtimeSubscription = () => {
-        try {
-            const subscription = supabase
-                .channel('admin-dashboard')
-                .on(
-                    'postgres_changes',
-                    {
-                        event: 'INSERT',
-                        schema: 'public',
-                        table: 'user_votes'
-                    },
-                    (payload) => {
-                        console.log('New vote received:', payload);
-
-                        // Update votes state with proper object spread
-                        setVotes(prevVotes => {
-                            const aspirantId = payload.new.aspirant_id;
-                            const newVotes = {
-                                ...prevVotes,
-                                [aspirantId]: (prevVotes[aspirantId] || 0) + 1
-                            };
-                            console.log('Updated votes:', newVotes);
-                            return newVotes;
-                        });
-
-                        // Update stats
-                        setStats(prevStats => ({
-                            ...prevStats,
-                            totalVotes: prevStats.totalVotes + 1
-                        }));
-                    }
-                )
-                .on(
-                    'postgres_changes',
-                    {
-                        event: 'DELETE',
-                        schema: 'public',
-                        table: 'user_votes'
-                    },
-                    (payload) => {
-                        console.log('Vote removed:', payload);
-                        // For deletes, we need to know which aspirant lost a vote
-                        // Since payload.old might contain the aspirant_id
-                        if (payload.old && payload.old.aspirant_id) {
-                            setVotes(prevVotes => {
-                                const aspirantId = payload.old.aspirant_id;
-                                const newVotes = {
-                                    ...prevVotes,
-                                    [aspirantId]: Math.max(0, (prevVotes[aspirantId] || 0) - 1)
-                                };
-                                return newVotes;
-                            });
-
-                            setStats(prevStats => ({
-                                ...prevStats,
-                                totalVotes: Math.max(0, prevStats.totalVotes - 1)
-                            }));
-                        } else {
-                            // If we can't get the aspirant_id, do a full refresh
-                            fetchData();
-                        }
-                    }
-                )
-                .on(
-                    'postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'aspirants'
-                    },
-                    () => {
-                        console.log('Aspirants changed, refreshing...');
-                        fetchData();
-                    }
-                )
-                .on(
-                    'postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'profiles'
-                    },
-                    () => {
-                        console.log('Profiles changed, refreshing...');
-                        fetchData();
-                    }
-                )
-                .on(
-                    'postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'aspirant_registrations'
-                    },
-                    () => {
-                        console.log('Registrations changed, refreshing...');
-                        fetchData();
-                    }
-                )
-                .subscribe((status) => {
-                    console.log('Subscription status:', status);
-                    if (status === 'SUBSCRIBED') {
-                        console.log('Successfully subscribed to realtime changes');
-                    }
-                });
-
-            return subscription;
-        } catch (err) {
-            console.error('Realtime subscription error:', err);
-            return null;
-        }
-    };
 
     const handleResetVotes = async () => {
         if (!window.confirm('Are you sure you want to reset all votes? This action cannot be undone.')) {
@@ -210,84 +93,17 @@ const AspirantPanel = () => {
         }
 
         try {
-            setLoading(true);
             const { error } = await supabase
                 .from('user_votes')
                 .delete()
                 .not('aspirant_id', 'is', null);
 
-
             if (error) throw error;
             setSuccess('All votes have been reset successfully.');
-            fetchData();
-
+            onRefresh(); // Use parent's refresh
         } catch (error) {
             console.error('Error resetting votes:', error);
             setError('Failed to reset votes. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-
-            const { data: aspirantsData, error: aspirantsError } = await supabase
-                .from('aspirants')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (aspirantsError) throw aspirantsError;
-            setAspirants(aspirantsData || []);
-
-
-            const { data: registrationsData, error: registrationsError } = await supabase
-                .from('aspirant_registrations')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (registrationsError) throw registrationsError;
-            setRegistrations(registrationsData || []);
-            const { data: votesData, error: votesError } = await supabase
-                .from('user_votes')
-                .select('aspirant_id');
-
-            if (votesError) throw votesError;
-
-            const voteCounts = {};
-            (votesData || []).forEach(v => {
-                voteCounts[v.aspirant_id] = (voteCounts[v.aspirant_id] || 0) + 1;
-            });
-            setVotes(voteCounts);
-
-            const { data: profilesData, error: profilesError } = await supabase
-                .from('profiles')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (profilesError) throw profilesError;
-            setProfiles(profilesData || []);
-
-            const totalVotes = (votesData || []).length;
-            const pendingRegistrations = (registrationsData || []).filter(r => r.status === 'pending').length;
-            const approvedRegistrations = (registrationsData || []).filter(r => r.status === 'approved').length;
-            const rejectedRegistrations = (registrationsData || []).filter(r => r.status === 'rejected').length;
-
-            setStats({
-                totalVotes,
-                totalVoters: (profilesData || []).length,
-                totalAspirants: (aspirantsData || []).length,
-                pendingRegistrations,
-                approvedRegistrations,
-                rejectedRegistrations
-            });
-
-        } catch (error) {
-            console.error('Error fetching data:', error);
-            setError('Failed to load data. Please refresh the page.');
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -295,16 +111,13 @@ const AspirantPanel = () => {
         e.preventDefault();
         setError(null);
 
-        // Basic validation
         if (!formData.name.trim() || !formData.party.trim() || !formData.seat || !formData.county) {
             setError('Please fill in all required fields.');
             return;
         }
 
-        setLoading(true);
-
         try {
-            const { data, error: insertError } = await supabase
+            const { error: insertError } = await supabase
                 .from('aspirants')
                 .insert([{
                     name: formData.name.trim(),
@@ -314,8 +127,7 @@ const AspirantPanel = () => {
                     constituency: formData.constituency.trim() || null,
                     ward: formData.ward.trim() || null,
                     created_at: new Date().toISOString()
-                }])
-                .select();
+                }]);
 
             if (insertError) throw insertError;
 
@@ -329,12 +141,10 @@ const AspirantPanel = () => {
                 constituency: '',
                 ward: ''
             });
-            fetchData();
+            onRefresh(); // Use parent's refresh
         } catch (error) {
             console.error('Error adding aspirant:', error);
             setError(`Failed to add candidate: ${error.message}`);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -343,16 +153,12 @@ const AspirantPanel = () => {
 
         if (!editingAspirant) return;
 
-
         setError(null);
 
-        // Basic validation
         if (!formData.name.trim() || !formData.party.trim() || !formData.seat || !formData.county) {
             setError('Please fill in all required fields.');
             return;
         }
-
-        setLoading(true);
 
         try {
             const { error: updateError } = await supabase
@@ -381,12 +187,10 @@ const AspirantPanel = () => {
                 constituency: '',
                 ward: ''
             });
-            fetchData();
+            onRefresh(); // Use parent's refresh
         } catch (error) {
             console.error('Error updating aspirant:', error);
             setError(`Failed to update candidate: ${error.message}`);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -396,7 +200,6 @@ const AspirantPanel = () => {
         }
 
         try {
-            setLoading(true);
             const { error } = await supabase
                 .from('aspirants')
                 .delete()
@@ -405,15 +208,12 @@ const AspirantPanel = () => {
             if (error) throw error;
 
             setSuccess('Candidate deleted successfully!');
-            fetchData();
+            onRefresh(); // Use parent's refresh
         } catch (error) {
             console.error('Error deleting aspirant:', error);
             setError('Failed to delete candidate. Please try again.');
-        } finally {
-            setLoading(false);
         }
     };
-
 
     const fetchVoterDetails = async (aspirantId) => {
         try {
@@ -432,7 +232,6 @@ const AspirantPanel = () => {
                 return;
             }
 
-
             const userIds = votesData.map(vote => vote.user_id);
 
             const { data: profilesData, error: profilesError } = await supabase
@@ -441,6 +240,7 @@ const AspirantPanel = () => {
                 .in('id', userIds);
 
             if (profilesError) throw profilesError;
+            
             const combinedData = votesData.map(vote => {
                 const profile = profilesData?.find(p => p.id === vote.user_id);
                 return {
@@ -459,7 +259,6 @@ const AspirantPanel = () => {
         }
     };
 
-    // Handle row click to show voter details
     const handleRowClick = async (aspirant) => {
         setSelectedAspirant(aspirant);
         setShowVoterModal(true);
@@ -478,7 +277,6 @@ const AspirantPanel = () => {
         return matchesSearch && matchesSeat;
     });
 
-    // Filter voter details based on search
     const filteredVoterDetails = voterDetails.filter(voter => {
         if (!voter.profile) return false;
 
