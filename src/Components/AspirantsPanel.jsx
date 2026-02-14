@@ -116,71 +116,258 @@ const AspirantPanel = ({
 
     const handlePrintElectionResults = async () => {
         try {
+            // Fetch data with proper relationship
             const { data, error } = await supabase
                 .from("aspirants")
                 .select(`
-        id,
-        name,
-        party,
-        seat,
-        county,
-        user_votes(count)
-      `);
+                id,
+                name,
+                party,
+                seat,
+                county,
+                constituency,
+                ward,
+                user_votes!inner(count)
+            `);
 
             if (error) {
                 console.error("Error fetching results:", error);
                 return;
             }
 
+            // Process results with vote counts
             const results = data.map(a => ({
                 candidate: a.name,
                 party: a.party,
                 seat: a.seat,
                 county: a.county,
-                votes: a.user_votes[0]?.count || 0
+                constituency: a.constituency || 'N/A',
+                ward: a.ward || 'N/A',
+                votes: a.user_votes?.length || 0
             }));
 
+            // Calculate totals and percentages
             const totalVotes = results.reduce((sum, r) => sum + r.votes, 0);
-            results.forEach(r => {
-                r.percentage = totalVotes
-                    ? ((r.votes / totalVotes) * 100).toFixed(2) + "%"
-                    : "0%";
+            const resultsWithPercentage = results.map(r => ({
+                ...r,
+                percentage: totalVotes ? ((r.votes / totalVotes) * 100) : 0
+            }));
+
+            // Sort by votes descending
+            resultsWithPercentage.sort((a, b) => b.votes - a.votes);
+
+            // Create new PDF document
+            const doc = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4'
             });
 
-            const doc = new jsPDF();
-            doc.setFontSize(18);
-            doc.text("Election Results", 14, 22);
+            // Set document properties
+            doc.setProperties({
+                title: 'Election Results Report',
+                subject: 'Official Election Results',
+                author: 'Election Commission',
+                keywords: 'election, results, voting'
+            });
 
-            doc.setFontSize(12);
-            doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 32);
+            // Add official seal/header styling
+            doc.setFillColor(245, 158, 11); // Orange
+            doc.rect(0, 0, doc.internal.pageSize.width, 8, 'F');
 
-            const tableColumn = ["Candidate", "Party", "Seat", "County", "Votes", "Percentage"];
-            const tableRows = results.map(r => [
+            // Add main header
+            doc.setFontSize(24);
+            doc.setTextColor(31, 41, 55); // Dark gray
+            doc.setFont('helvetica', 'bold');
+            doc.text('OFFICIAL ELECTION RESULTS', doc.internal.pageSize.width / 2, 22, { align: 'center' });
+
+            // Add subheader
+            doc.setFontSize(14);
+            doc.setTextColor(75, 85, 99); // Medium gray
+            doc.setFont('helvetica', 'normal');
+            doc.text('Kenya General Election', doc.internal.pageSize.width / 2, 30, { align: 'center' });
+
+            // Add generation info box
+            doc.setFillColor(249, 250, 251); // Light gray
+            doc.roundedRect(14, 35, doc.internal.pageSize.width - 28, 15, 3, 3, 'F');
+
+            doc.setFontSize(10);
+            doc.setTextColor(31, 41, 55);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Report Generated:', 20, 44);
+            doc.setFont('helvetica', 'normal');
+            doc.text(new Date().toLocaleString('en-KE', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            }), 55, 44);
+
+            doc.text('Total Votes Cast:', 140, 44);
+            doc.setFont('helvetica', 'bold');
+            doc.text(totalVotes.toLocaleString(), 175, 44);
+
+            doc.text('Total Candidates:', 210, 44);
+            doc.setFont('helvetica', 'bold');
+            doc.text(results.length.toString(), 245, 44);
+
+            // Summary statistics
+            const leadingCandidate = resultsWithPercentage[0];
+            const turnout = totalVotes; // You can add registered voters count here if available
+
+            // Results summary box
+            doc.setFillColor(239, 246, 255); // Light blue
+            doc.roundedRect(14, 55, doc.internal.pageSize.width - 28, 20, 3, 3, 'F');
+
+            doc.setFontSize(11);
+            doc.setTextColor(29, 78, 216); // Blue
+            doc.setFont('helvetica', 'bold');
+            doc.text('SUMMARY STATISTICS', 20, 64);
+
+            doc.setFontSize(10);
+            doc.setTextColor(55, 65, 81);
+            doc.setFont('helvetica', 'normal');
+
+            doc.text(`Leading Candidate: ${leadingCandidate.candidate} (${leadingCandidate.party})`, 20, 70);
+            doc.text(`Votes: ${leadingCandidate.votes.toLocaleString()} (${leadingCandidate.percentage.toFixed(2)}%)`, 110, 70);
+            doc.text(`Margin: ${(leadingCandidate.votes - (resultsWithPercentage[1]?.votes || 0)).toLocaleString()} votes`, 190, 70);
+
+            // Prepare table data
+            const tableColumn = [
+                { header: 'Position', dataKey: 'rank' },
+                { header: 'Candidate', dataKey: 'candidate' },
+                { header: 'Party', dataKey: 'party' },
+                { header: 'Seat', dataKey: 'seat' },
+                { header: 'County', dataKey: 'county' },
+                { header: 'Votes', dataKey: 'votes' },
+                { header: 'Percentage', dataKey: 'percentage' }
+            ];
+
+            const tableRows = resultsWithPercentage.map((r, index) => [
+                index + 1,
                 r.candidate,
                 r.party,
                 r.seat,
                 r.county,
-                r.votes,
-                r.percentage
+                r.votes.toLocaleString(),
+                r.percentage.toFixed(2) + '%'
             ]);
 
+            // Generate the main table with custom styling
             autoTable(doc, {
-                head: [tableColumn],
+                head: [tableColumn.map(col => col.header)],
                 body: tableRows,
-                startY: 40,
-                styles: { halign: "center" },
-                headStyles: { fillColor: [22, 160, 133] }
+                startY: 82,
+                margin: { left: 14, right: 14 },
+                styles: {
+                    fontSize: 9,
+                    cellPadding: 3,
+                    lineColor: [229, 231, 235],
+                    lineWidth: 0.1,
+                    halign: 'left',
+                    valign: 'middle'
+                },
+                headStyles: {
+                    fillColor: [22, 78, 99], // Dark blue
+                    textColor: [255, 255, 255],
+                    fontSize: 10,
+                    fontStyle: 'bold',
+                    halign: 'center',
+                    lineColor: [255, 255, 255],
+                    lineWidth: 0.5
+                },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 15 }, // Rank
+                    1: { halign: 'left', cellWidth: 45 }, // Candidate
+                    2: { halign: 'left', cellWidth: 30 }, // Party
+                    3: { halign: 'left', cellWidth: 35 }, // Seat
+                    4: { halign: 'left', cellWidth: 35 }, // County
+                    5: { halign: 'right', cellWidth: 25 }, // Votes
+                    6: { halign: 'right', cellWidth: 25 } // Percentage
+                },
+                alternateRowStyles: {
+                    fillColor: [249, 250, 251] // Light gray for alternate rows
+                },
+                // Highlight top 3 positions
+                didDrawCell: (data) => {
+                    if (data.section === 'body' && data.column.index === 0) {
+                        const rank = data.cell.raw;
+                        if (rank === 1) {
+                            doc.setFillColor(255, 215, 0); // Gold
+                            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                            doc.setTextColor(0, 0, 0);
+                            doc.setFont('helvetica', 'bold');
+                            doc.text('1', data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 2, { align: 'center' });
+                        } else if (rank === 2) {
+                            doc.setFillColor(192, 192, 192); // Silver
+                            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                            doc.setTextColor(0, 0, 0);
+                            doc.setFont('helvetica', 'bold');
+                            doc.text('2', data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 2, { align: 'center' });
+                        } else if (rank === 3) {
+                            doc.setFillColor(205, 127, 50); // Bronze
+                            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                            doc.setTextColor(255, 255, 255);
+                            doc.setFont('helvetica', 'bold');
+                            doc.text('3', data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 2, { align: 'center' });
+                        }
+                    }
+                }
             });
 
-            doc.setFontSize(10);
-            doc.text("Official Election Report", 14, doc.internal.pageSize.height - 10);
+            // Get the final Y position after the table
+            const finalY = doc.lastAutoTable.finalY + 10;
 
-            doc.save("ElectionResults.pdf");
+            // Add footer with page numbers
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+
+                // Add footer line
+                doc.setDrawColor(229, 231, 235);
+                doc.line(14, doc.internal.pageSize.height - 15, doc.internal.pageSize.width - 14, doc.internal.pageSize.height - 15);
+
+                doc.setFontSize(8);
+                doc.setTextColor(156, 163, 175);
+                doc.setFont('helvetica', 'normal');
+
+                // Left footer
+                doc.text('Official Election Report - For Verification Purposes', 14, doc.internal.pageSize.height - 7);
+
+                // Center footer
+                doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 7, { align: 'center' });
+
+                // Right footer
+                doc.text(`Generated: ${new Date().toLocaleDateString()}`, doc.internal.pageSize.width - 14, doc.internal.pageSize.height - 7, { align: 'right' });
+            }
+
+            // Add a verification seal/stamp on the last page
+            doc.setPage(pageCount);
+            doc.setFillColor(220, 38, 38); // Red
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+
+            // Add "OFFICIAL" stamp diagonally
+            for (let i = 0; i < 5; i++) {
+                doc.text('OFFICIAL', 40 + (i * 40), doc.internal.pageSize.height - 30 + (i * 5), {
+                    angle: 45,
+                    align: 'center'
+                });
+            }
+
+            // Save the PDF
+            doc.save(`Election_Results_${new Date().toISOString().split('T')[0]}.pdf`);
+
         } catch (err) {
             console.error("Unexpected error:", err);
+            // Show user-friendly error message
+            alert('Failed to generate election results. Please try again.');
         }
     };
-
 
     const handleAddAspirant = async (e) => {
         e.preventDefault();
