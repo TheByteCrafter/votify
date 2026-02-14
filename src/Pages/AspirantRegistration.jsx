@@ -159,13 +159,7 @@ export default function AspirantRegistration() {
                                 </div>
                             </div>
                         </div>
-                        <button
-                            onClick={() => navigate('/admin')}
-                            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-xl font-bold hover:shadow-lg transition-all"
-                        >
-                            <Shield size={18} />
-                            Admin Panel
-                        </button>
+                        
                     </div>
                 </div>
             </header>

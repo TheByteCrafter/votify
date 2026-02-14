@@ -13,6 +13,10 @@ export default function LandingPage({ onBanTrigger, checkBanStatus }) {
     const [loading, setLoading] = useState(false);
     const [securityWarning, setSecurityWarning] = useState('');
 
+    const handleAspirantSignup = () => {
+        navigate('/aspirant');
+    };
+
     const handleLogin = async (e) => {
         e.preventDefault();
         setError('');
@@ -20,7 +24,7 @@ export default function LandingPage({ onBanTrigger, checkBanStatus }) {
         setLoading(true);
 
         try {
-            // Step 1: Check rate limiting AND ban status
+
             const rateLimitCheck = await fetch(`${API_URL}/voter/login-check`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -246,6 +250,12 @@ Error: ${err.message || 'Connection failed'}`
                                     SIGN IN TO PORTAL <ArrowRight size={18} />
                                 </>
                             )}
+                        </button>
+                        <button
+                            onClick={handleAspirantSignup}
+                            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-400 text-white font-black rounded-2xl transition-all flex items-center justify-center gap-2 mt-2 shadow-lg shadow-emerald-200 disabled:shadow-none"
+                        >
+                            Sign Up as An Aspirant
                         </button>
                     </form>
 

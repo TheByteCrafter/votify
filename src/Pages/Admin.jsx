@@ -39,6 +39,8 @@ export default function AdminPortal() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('dashboard');
     const [showAddModal, setShowAddModal] = useState(false);
+    const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
+ 
 
     const [stats, setStats] = useState({
         totalVotes: 0,
