@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Search, PlusCircle, RefreshCw, MapPin, Home, Edit2, Trash2, X, AlertCircle, Loader2, User, Mail, Phone, Calendar, Hash } from 'lucide-react';
 import { supabase } from '../../supabase';
-
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { Printer } from 'lucide-react';
 const AspirantPanel = ({ 
     aspirants: propAspirants, 
     votes: propVotes, 
@@ -114,6 +116,91 @@ const AspirantPanel = ({
         }
     };
 
+
+    const handlePrintElectionResults = async () => {
+  try {
+    // Fetch results
+    const { data, error } = await supabase
+      .from("aspirants")
+      .select(`
+        id,
+        name,
+        party,
+        seat,
+        county,
+        user_votes(count)
+      `);
+
+    if (error) {
+      console.error("Error fetching results:", error);
+      return;
+    }
+
+    const results = data.map(a => ({
+      candidate: a.name,
+      party: a.party,
+      seat: a.seat,
+      county: a.county,
+      votes: a.user_votes[0]?.count || 0
+    }));
+
+    const totalVotes = results.reduce((sum, r) => sum + r.votes, 0);
+    results.forEach(r => {
+      r.percentage = totalVotes
+        ? ((r.votes / totalVotes) * 100).toFixed(2) + "%"
+        : "0%";
+    });
+
+    // Generate PDF
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("Election Results", 14, 22);
+
+    doc.setFontSize(12);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 32);
+
+    const tableColumn = ["Candidate", "Party", "Seat", "County", "Votes", "Percentage"];
+    const tableRows = results.map(r => [
+      r.candidate,
+      r.party,
+      r.seat,
+      r.county,
+      r.votes,
+      r.percentage
+    ]);
+
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 40,
+      styles: { halign: "center" },
+      headStyles: { fillColor: [22, 160, 133] }
+    });
+
+    doc.setFontSize(10);
+    doc.text("Official Election Report", 14, doc.internal.pageSize.height - 10);
+
+    // Use File System Access API for file picker
+    const pdfBlob = doc.output("blob");
+    const fileHandle = await window.showSaveFilePicker({
+      suggestedName: "ElectionResults.pdf",
+      types: [
+        {
+          description: "PDF Document",
+          accept: { "application/pdf": [".pdf"] }
+        }
+      ]
+    });
+
+    const writable = await fileHandle.createWritable();
+    await writable.write(pdfBlob);
+    await writable.close();
+
+    console.log("PDF saved successfully!");
+  } catch (err) {
+    console.error("Unexpected error:", err);
+  }
+}
     const handleAddAspirant = async (e) => {
         e.preventDefault();
         setError(null);
@@ -394,6 +481,17 @@ const AspirantPanel = ({
                                 <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
                                 Reset Votes
                             </button>
+
+                             <button
+                                onClick={handlePrintElectionResults}
+                                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-red-600/20"
+                                disabled={false}
+                            >
+                                <Printer size={18} className={loading ? 'animate-spin' : ''} />
+                                Print Results
+                            </button>
+                            
+
                         </div>
                     </div>
 

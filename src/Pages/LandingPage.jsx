@@ -41,7 +41,7 @@ export default function LandingPage({ onBanTrigger, checkBanStatus }) {
                 return;
             }
 
-            // Step 2: Check if rate limited (but not banned)
+         
             if (!rateLimitCheck.ok) {
                 if (checkData.rateLimited) {
                     const hours = Math.floor(checkData.retryAfter / 3600);
