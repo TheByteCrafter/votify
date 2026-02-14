@@ -106,7 +106,7 @@ const AspirantPanel = ({
 
             if (error) throw error;
             setSuccess('All votes have been reset successfully.');
-            onRefresh(); // Use parent's refresh
+            onRefresh();
         } catch (error) {
             console.error('Error resetting votes:', error);
             setError('Failed to reset votes. Please try again.');
