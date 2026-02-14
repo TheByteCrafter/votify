@@ -113,7 +113,9 @@ const AspirantPanel = () => {
             setLoading(true);
             const { error } = await supabase
                 .from('user_votes')
-                .delete();
+                .delete()
+                .neq('aspirant_id', null); 
+
 
             if (error) throw error;
             setSuccess('All votes have been reset successfully.');
