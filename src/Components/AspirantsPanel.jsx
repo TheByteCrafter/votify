@@ -135,27 +135,35 @@ const AspirantPanel = ({
             return;
         }
 
+        // FIXED: Properly extract vote counts from the count object
+        const processedData = data.map(a => ({
+            ...a,
+            // Extract the actual count from the user_votes array
+            voteCount: a.user_votes?.[0]?.count || 0
+        }));
+
         // Group results by seat
         const resultsBySeat = {};
-        data.forEach(a => {
+        processedData.forEach(a => {
             const seat = a.seat;
             if (!resultsBySeat[seat]) {
                 resultsBySeat[seat] = [];
             }
             resultsBySeat[seat].push({
+                id: a.id,
                 candidate: a.name,
                 party: a.party,
                 seat: a.seat,
                 county: a.county || 'N/A',
                 constituency: a.constituency || 'N/A',
                 ward: a.ward || 'N/A',
-                votes: a.user_votes?.length || 0
+                votes: a.voteCount  // Use the extracted count instead of .length
             });
         });
 
         // Create new PDF document
         const doc = new jsPDF({
-            orientation: 'portrait', // Changed to portrait for better readability
+            orientation: 'portrait',
             unit: 'mm',
             format: 'a4'
         });
@@ -210,9 +218,9 @@ const AspirantPanel = ({
         }), 55, 72);
 
         // Overall statistics in a clean grid
-        const totalOverallVotes = data.reduce((sum, a) => sum + (a.user_votes?.length || 0), 0);
+        const totalOverallVotes = processedData.reduce((sum, a) => sum + a.voteCount, 0);
         const totalSeats = Object.keys(resultsBySeat).length;
-        const totalCandidates = data.length;
+        const totalCandidates = processedData.length;
 
         doc.setFillColor(239, 246, 255);
         doc.roundedRect(20, 90, (doc.internal.pageSize.width - 60) / 3, 25, 2, 2, 'F');
@@ -250,7 +258,7 @@ const AspirantPanel = ({
         doc.setFont('helvetica', 'bold');
         doc.text('SEAT-BY-SEAT SUMMARY', doc.internal.pageSize.width / 2, 140, { align: 'center' });
 
-        // Prepare seat summary data in a cleaner format
+        // Prepare seat summary data
         const seatSummaries = [];
         
         Object.keys(resultsBySeat).forEach(seat => {
@@ -273,7 +281,7 @@ const AspirantPanel = ({
         // Sort seats alphabetically
         seatSummaries.sort((a, b) => a.seat.localeCompare(b.seat));
 
-        // Create a clean, organized table
+        // Create summary table
         autoTable(doc, {
             startY: 150,
             head: [['Position', 'Total Votes', 'Winner', 'Party', 'Votes', '%']],
@@ -311,14 +319,6 @@ const AspirantPanel = ({
             },
             alternateRowStyles: {
                 fillColor: [249, 250, 251]
-            },
-            // Add subtle borders between rows
-            didDrawCell: (data) => {
-                if (data.section === 'body') {
-                    doc.setDrawColor(229, 231, 235);
-                    doc.setLineWidth(0.1);
-                    doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
-                }
             }
         });
 
@@ -329,7 +329,7 @@ const AspirantPanel = ({
         doc.setFont('helvetica', 'italic');
         doc.text('Note: Percentages shown are based on total votes cast in each respective position.', 20, finalY);
 
-        // Add footer
+        // Add footer for first page
         doc.setDrawColor(0, 128, 0);
         doc.line(20, doc.internal.pageSize.height - 20, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 20);
         
@@ -408,7 +408,6 @@ const AspirantPanel = ({
                     4: { halign: 'right', cellWidth: 25 },
                     5: { halign: 'right', cellWidth: 20 }
                 },
-                // Highlight winner row
                 didParseCell: (data) => {
                     if (data.section === 'body' && data.row.index === 0) {
                         data.cell.styles.fillColor = [255, 247, 237];
@@ -423,7 +422,7 @@ const AspirantPanel = ({
             
             doc.setFontSize(8);
             doc.setTextColor(107, 114, 128);
-            doc.text('Electronic Independent Electoral Commission - Official Results', 20, doc.internal.pageSize.height - 10);
+            doc.text('Independent Electoral Commission - Official Results', 20, doc.internal.pageSize.height - 10);
             doc.text(`Page ${pageNumber} of ?`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10, { align: 'right' });
             
             pageNumber++;
