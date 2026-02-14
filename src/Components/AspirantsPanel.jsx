@@ -2,15 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { Search, PlusCircle, RefreshCw, MapPin, Home, Edit2, Trash2, X, AlertCircle, Loader2, User, Mail, Phone, Calendar, Hash } from 'lucide-react';
 import { supabase } from '../../supabase';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { Printer } from 'lucide-react';
-const AspirantPanel = ({ 
-    aspirants: propAspirants, 
-    votes: propVotes, 
+const AspirantPanel = ({
+    aspirants: propAspirants,
+    votes: propVotes,
     registrations: propRegistrations,
     profiles: propProfiles,
     onRefresh,
-    loading: propLoading 
+    loading: propLoading
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterSeat, setFilterSeat] = useState('all');
@@ -84,7 +84,7 @@ const AspirantPanel = ({
         }
     }, [error, success]);
 
- 
+
     useEffect(() => {
         console.log('Votes received in AspirantPanel:', votes);
     }, [votes]);
@@ -118,11 +118,10 @@ const AspirantPanel = ({
 
 
     const handlePrintElectionResults = async () => {
-  try {
-    // Fetch results
-    const { data, error } = await supabase
-      .from("aspirants")
-      .select(`
+        try {
+            const { data, error } = await supabase
+                .from("aspirants")
+                .select(`
         id,
         name,
         party,
@@ -131,76 +130,61 @@ const AspirantPanel = ({
         user_votes(count)
       `);
 
-    if (error) {
-      console.error("Error fetching results:", error);
-      return;
-    }
+            if (error) {
+                console.error("Error fetching results:", error);
+                return;
+            }
 
-    const results = data.map(a => ({
-      candidate: a.name,
-      party: a.party,
-      seat: a.seat,
-      county: a.county,
-      votes: a.user_votes[0]?.count || 0
-    }));
+            const results = data.map(a => ({
+                candidate: a.name,
+                party: a.party,
+                seat: a.seat,
+                county: a.county,
+                votes: a.user_votes[0]?.count || 0
+            }));
 
-    const totalVotes = results.reduce((sum, r) => sum + r.votes, 0);
-    results.forEach(r => {
-      r.percentage = totalVotes
-        ? ((r.votes / totalVotes) * 100).toFixed(2) + "%"
-        : "0%";
-    });
+            const totalVotes = results.reduce((sum, r) => sum + r.votes, 0);
+            results.forEach(r => {
+                r.percentage = totalVotes
+                    ? ((r.votes / totalVotes) * 100).toFixed(2) + "%"
+                    : "0%";
+            });
 
-    // Generate PDF
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text("Election Results", 14, 22);
+            const doc = new jsPDF();
+            doc.setFontSize(18);
+            doc.text("Election Results", 14, 22);
 
-    doc.setFontSize(12);
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 32);
+            doc.setFontSize(12);
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 32);
 
-    const tableColumn = ["Candidate", "Party", "Seat", "County", "Votes", "Percentage"];
-    const tableRows = results.map(r => [
-      r.candidate,
-      r.party,
-      r.seat,
-      r.county,
-      r.votes,
-      r.percentage
-    ]);
+            const tableColumn = ["Candidate", "Party", "Seat", "County", "Votes", "Percentage"];
+            const tableRows = results.map(r => [
+                r.candidate,
+                r.party,
+                r.seat,
+                r.county,
+                r.votes,
+                r.percentage
+            ]);
 
-    doc.autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      startY: 40,
-      styles: { halign: "center" },
-      headStyles: { fillColor: [22, 160, 133] }
-    });
+            autoTable(doc, {
+                head: [tableColumn],
+                body: tableRows,
+                startY: 40,
+                styles: { halign: "center" },
+                headStyles: { fillColor: [22, 160, 133] }
+            });
 
-    doc.setFontSize(10);
-    doc.text("Official Election Report", 14, doc.internal.pageSize.height - 10);
+            doc.setFontSize(10);
+            doc.text("Official Election Report", 14, doc.internal.pageSize.height - 10);
 
-    // Use File System Access API for file picker
-    const pdfBlob = doc.output("blob");
-    const fileHandle = await window.showSaveFilePicker({
-      suggestedName: "ElectionResults.pdf",
-      types: [
-        {
-          description: "PDF Document",
-          accept: { "application/pdf": [".pdf"] }
+            // Save or use file picker
+            doc.save("ElectionResults.pdf");
+        } catch (err) {
+            console.error("Unexpected error:", err);
         }
-      ]
-    });
+    };
 
-    const writable = await fileHandle.createWritable();
-    await writable.write(pdfBlob);
-    await writable.close();
-
-    console.log("PDF saved successfully!");
-  } catch (err) {
-    console.error("Unexpected error:", err);
-  }
-}
     const handleAddAspirant = async (e) => {
         e.preventDefault();
         setError(null);
@@ -334,7 +318,7 @@ const AspirantPanel = ({
                 .in('id', userIds);
 
             if (profilesError) throw profilesError;
-            
+
             const combinedData = votesData.map(vote => {
                 const profile = profilesData?.find(p => p.id === vote.user_id);
                 return {
@@ -482,7 +466,7 @@ const AspirantPanel = ({
                                 Reset Votes
                             </button>
 
-                             <button
+                            <button
                                 onClick={handlePrintElectionResults}
                                 className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-red-600/20"
                                 disabled={false}
@@ -490,12 +474,12 @@ const AspirantPanel = ({
                                 <Printer size={18} className={loading ? 'animate-spin' : ''} />
                                 Print Results
                             </button>
-                            
+
 
                         </div>
                     </div>
 
-                    
+
                     <div className="flex-1 min-h-0">
                         {loading && aspirants.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-24 text-slate-400">
@@ -659,7 +643,7 @@ const AspirantPanel = ({
                             </button>
                         </div>
 
-                        
+
                         <div className="p-4 border-b border-gray-200">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
