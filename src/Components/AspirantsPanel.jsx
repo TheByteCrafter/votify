@@ -86,7 +86,6 @@ const AspirantPanel = () => {
                         fetchData();
                     }
                 )
-
                 .on('postgres_changes',
                     { event: '*', schema: 'public', table: 'aspirants' },
                     () => fetchData()
