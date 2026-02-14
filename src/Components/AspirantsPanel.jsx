@@ -82,12 +82,11 @@ const AspirantPanel = ({
         }
     }, [error, success]);
 
-    // Log votes changes for debugging
+ 
     useEffect(() => {
         console.log('Votes received in AspirantPanel:', votes);
     }, [votes]);
 
-    //run fetchData every 5 seconds to keep data fresh
     useEffect(() => {
         const interval = setInterval(() => {
             onRefresh();

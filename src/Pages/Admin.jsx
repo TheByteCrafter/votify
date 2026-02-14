@@ -657,7 +657,6 @@ export default function AdminPortal() {
                         </div>
                     )}
 
-
                     {activeTab === 'aspirants' && (
                         <AspirantPanel
                             aspirants={aspirants}
@@ -668,7 +667,6 @@ export default function AdminPortal() {
                             loading={loading}
                         />
                     )}
-
 
                     {activeTab === 'registrations' && (
                         <div className="space-y-6">
@@ -841,7 +839,7 @@ export default function AdminPortal() {
                         </div>
                     )}
 
-                    {/* Voters Tab */}
+                 
                     {activeTab === 'voters' && (
                         <VoterManagement />
                     )}
@@ -1011,8 +1009,6 @@ export default function AdminPortal() {
                             </div>
                         </div>
                     )}
-
-                    {/* Settings Tab */}
                     {activeTab === 'settings' && (
                         <AdminSettings />
 
