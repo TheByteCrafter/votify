@@ -80,9 +80,13 @@ const AspirantPanel = () => {
             const subscription = supabase
                 .channel('admin-dashboard')
                 .on('postgres_changes',
-                    { event: '*', schema: 'public', table: 'user_votes' },
-                    () => fetchData()
+                    { event: 'INSERT', schema: 'public', table: 'user_votes' },
+                    payload => {
+                        console.log('New vote:', payload);
+                        fetchData();
+                    }
                 )
+
                 .on('postgres_changes',
                     { event: '*', schema: 'public', table: 'aspirants' },
                     () => fetchData()
@@ -149,8 +153,6 @@ const AspirantPanel = () => {
 
             if (registrationsError) throw registrationsError;
             setRegistrations(registrationsData || []);
-
-            // Fetch votes
             const { data: votesData, error: votesError } = await supabase
                 .from('user_votes')
                 .select('aspirant_id');
@@ -163,7 +165,6 @@ const AspirantPanel = () => {
             });
             setVotes(voteCounts);
 
-            // Fetch profiles
             const { data: profilesData, error: profilesError } = await supabase
                 .from('profiles')
                 .select('*')
@@ -249,7 +250,7 @@ const AspirantPanel = () => {
 
         if (!editingAspirant) return;
 
-        // Clear previous errors
+
         setError(null);
 
         // Basic validation
