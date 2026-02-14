@@ -104,7 +104,6 @@ function App() {
     return localStorage.getItem('client_ip') || '0.0.0.0';
   };
 
-  // 🚨 COMPREHENSIVE BAN CHECK - Server-side validation
   const checkBanStatus = async (email = null, ip = null, deviceId = null) => {
     try {
       const deviceFingerprint = deviceId || localStorage.getItem('device_fingerprint') || generateDeviceFingerprint();
@@ -116,7 +115,6 @@ function App() {
       const bannedIP = localStorage.getItem('banned_ip');
       const bannedDevice = localStorage.getItem('banned_device');
 
-      // Server-side ban check with ALL identifiers
       const response = await fetch(`${API_URL}/voter/check-ban-status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -127,8 +125,6 @@ function App() {
       });
 
       const data = await response.json();
-
-      // 🚨 BAN DETECTED - Multiple vectors
       if (data.isBanned) {
         setIsBanned(true);
         setBanInfo({

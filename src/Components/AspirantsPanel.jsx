@@ -31,8 +31,7 @@ const AspirantPanel = () => {
     });
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
-    
-    // Add new state for voter details modal
+
     const [showVoterModal, setShowVoterModal] = useState(false);
     const [selectedAspirant, setSelectedAspirant] = useState(null);
     const [voterDetails, setVoterDetails] = useState([]);
@@ -66,7 +65,6 @@ const AspirantPanel = () => {
         return () => subscription?.unsubscribe();
     }, []);
 
-    // Clear notifications
     useEffect(() => {
         if (error || success) {
             const timer = setTimeout(() => {
@@ -82,7 +80,7 @@ const AspirantPanel = () => {
             const subscription = supabase
                 .channel('admin-dashboard')
                 .on('postgres_changes',
-                    { event: '*', schema: 'public', table: 'votes' },
+                    { event: '*', schema: 'public', table: 'user_votes' },
                     () => fetchData()
                 )
                 .on('postgres_changes',
@@ -114,13 +112,13 @@ const AspirantPanel = () => {
         try {
             setLoading(true);
             const { error } = await supabase
-                .from('votes')
-                .update({ count: 0 });
+                .from('user_votes')
+                .delete();
 
             if (error) throw error;
-
             setSuccess('All votes have been reset successfully.');
             fetchData();
+
         } catch (error) {
             console.error('Error resetting votes:', error);
             setError('Failed to reset votes. Please try again.');
@@ -132,8 +130,7 @@ const AspirantPanel = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            
-            // Fetch aspirants
+
             const { data: aspirantsData, error: aspirantsError } = await supabase
                 .from('aspirants')
                 .select('*')
@@ -142,7 +139,7 @@ const AspirantPanel = () => {
             if (aspirantsError) throw aspirantsError;
             setAspirants(aspirantsData || []);
 
-            // Fetch registrations
+
             const { data: registrationsData, error: registrationsError } = await supabase
                 .from('aspirant_registrations')
                 .select('*')
@@ -158,7 +155,6 @@ const AspirantPanel = () => {
 
             if (votesError) throw votesError;
 
-            // Count votes per aspirant
             const voteCounts = {};
             (votesData || []).forEach(v => {
                 voteCounts[v.aspirant_id] = (voteCounts[v.aspirant_id] || 0) + 1;
@@ -199,10 +195,10 @@ const AspirantPanel = () => {
 
     const handleAddAspirant = async (e) => {
         e.preventDefault();
-        
+
         // Clear previous errors
         setError(null);
-        
+
         // Basic validation
         if (!formData.name.trim() || !formData.party.trim() || !formData.seat || !formData.county) {
             setError('Please fill in all required fields.');
@@ -248,12 +244,12 @@ const AspirantPanel = () => {
 
     const handleEditAspirant = async (e) => {
         e.preventDefault();
-        
+
         if (!editingAspirant) return;
-        
+
         // Clear previous errors
         setError(null);
-        
+
         // Basic validation
         if (!formData.name.trim() || !formData.party.trim() || !formData.seat || !formData.county) {
             setError('Please fill in all required fields.');
@@ -322,12 +318,11 @@ const AspirantPanel = () => {
         }
     };
 
-    // New function to fetch voter details
+
     const fetchVoterDetails = async (aspirantId) => {
         try {
             setLoadingVoters(true);
-            
-            // First, get all votes for this aspirant
+
             const { data: votesData, error: votesError } = await supabase
                 .from('user_votes')
                 .select('user_id, voted_at')
@@ -341,18 +336,15 @@ const AspirantPanel = () => {
                 return;
             }
 
-            // Get user IDs from votes
+
             const userIds = votesData.map(vote => vote.user_id);
 
-            // Fetch profiles for these users
             const { data: profilesData, error: profilesError } = await supabase
                 .from('profiles')
                 .select('*')
                 .in('id', userIds);
 
             if (profilesError) throw profilesError;
-
-            // Combine vote data with profile data
             const combinedData = votesData.map(vote => {
                 const profile = profilesData?.find(p => p.id === vote.user_id);
                 return {
@@ -393,7 +385,7 @@ const AspirantPanel = () => {
     // Filter voter details based on search
     const filteredVoterDetails = voterDetails.filter(voter => {
         if (!voter.profile) return false;
-        
+
         const searchLower = voterSearchTerm.toLowerCase();
         return (
             voter.profile.full_name?.toLowerCase().includes(searchLower) ||
@@ -408,7 +400,7 @@ const AspirantPanel = () => {
 
     return (
         <div className="flex-1 flex flex-col min-h-0">
-            
+
             <div className="flex-1 flex flex-col min-h-0 p-4 md:p-6">
                 {/* Scrollable content area */}
                 <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
@@ -540,8 +532,8 @@ const AspirantPanel = () => {
                                                         const percentage = (voteCount / maxVotes) * 100;
 
                                                         return (
-                                                            <tr 
-                                                                key={aspirant.id} 
+                                                            <tr
+                                                                key={aspirant.id}
                                                                 className="hover:bg-gray-50 transition-colors cursor-pointer"
                                                                 onClick={() => handleRowClick(aspirant)}
                                                             >
@@ -673,7 +665,7 @@ const AspirantPanel = () => {
                                 <X size={20} className="text-gray-500" />
                             </button>
                         </div>
-                        
+
                         {/* Search bar in modal */}
                         <div className="p-4 border-b border-gray-200">
                             <div className="relative">
@@ -703,7 +695,7 @@ const AspirantPanel = () => {
                                         <User size={24} className="text-gray-400" />
                                     </div>
                                     <p className="text-gray-500 font-medium">
-                                        {voterSearchTerm 
+                                        {voterSearchTerm
                                             ? 'No voters found matching your search'
                                             : 'No votes recorded for this candidate yet'
                                         }
@@ -712,8 +704,8 @@ const AspirantPanel = () => {
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {filteredVoterDetails.map((voter, index) => (
-                                        <div 
-                                            key={`${voter.userId}-${voter.votedAt}`} 
+                                        <div
+                                            key={`${voter.userId}-${voter.votedAt}`}
                                             className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
                                         >
                                             {voter.profile ? (
@@ -732,7 +724,7 @@ const AspirantPanel = () => {
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    
+
                                                     <div className="space-y-2">
                                                         <div className="flex items-center gap-2 text-sm">
                                                             <Mail size={14} className="text-gray-400" />
@@ -740,28 +732,28 @@ const AspirantPanel = () => {
                                                                 {voter.profile.email || 'No email'}
                                                             </span>
                                                         </div>
-                                                        
+
                                                         <div className="flex items-center gap-2 text-sm">
                                                             <Phone size={14} className="text-gray-400" />
                                                             <span className="text-gray-600">
                                                                 {voter.profile.phone_number || 'No phone'}
                                                             </span>
                                                         </div>
-                                                        
+
                                                         <div className="flex items-center gap-2 text-sm">
                                                             <MapPin size={14} className="text-gray-400" />
                                                             <span className="text-gray-600">
                                                                 {voter.profile.county}, {voter.profile.constituency}
                                                             </span>
                                                         </div>
-                                                        
+
                                                         {voter.profile.ward && (
                                                             <div className="text-xs text-gray-500 pl-6">
                                                                 {voter.profile.ward} Ward
                                                             </div>
                                                         )}
                                                     </div>
-                                                    
+
                                                     <div className="pt-2 border-t border-gray-100">
                                                         <div className="flex items-center gap-2 text-xs text-gray-500">
                                                             <Calendar size={12} />
@@ -797,7 +789,7 @@ const AspirantPanel = () => {
                                 </div>
                             )}
                         </div>
-                        
+
                         <div className="p-4 border-t border-gray-200 text-center">
                             <p className="text-sm text-gray-500">
                                 Showing {filteredVoterDetails.length} of {voterDetails.length} voters
