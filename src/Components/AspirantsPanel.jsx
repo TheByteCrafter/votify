@@ -15,14 +15,11 @@ const AspirantPanel = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [filterSeat, setFilterSeat] = useState('all');
 
-    // Use props directly instead of local state for data
     const aspirants = propAspirants || [];
     const votes = propVotes || {};
     const registrations = propRegistrations || [];
     const profiles = propProfiles || [];
     const loading = propLoading || false;
-
-    // Local UI state only
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingAspirant, setEditingAspirant] = useState(null);
@@ -178,12 +175,12 @@ const AspirantPanel = ({
             doc.setFontSize(10);
             doc.text("Official Election Report", 14, doc.internal.pageSize.height - 10);
 
-            // Save or use file picker
             doc.save("ElectionResults.pdf");
         } catch (err) {
             console.error("Unexpected error:", err);
         }
     };
+
 
     const handleAddAspirant = async (e) => {
         e.preventDefault();
