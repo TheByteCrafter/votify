@@ -172,7 +172,6 @@ const AspirantPanel = () => {
             if (profilesError) throw profilesError;
             setProfiles(profilesData || []);
 
-            // Calculate stats
             const totalVotes = (votesData || []).length;
             const pendingRegistrations = (registrationsData || []).filter(r => r.status === 'pending').length;
             const approvedRegistrations = (registrationsData || []).filter(r => r.status === 'approved').length;
