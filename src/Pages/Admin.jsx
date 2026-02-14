@@ -453,7 +453,7 @@ export default function AdminPortal() {
 
     if (loading) {
         return (
-            <div className="flex h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
+            <div className="flex h-screen items-center justify-center bg-linear-to-br from-blue-50 to-indigo-50">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
                     <p className="text-gray-600 font-medium">Loading admin dashboard...</p>
@@ -711,7 +711,7 @@ export default function AdminPortal() {
                         <AspirantPanel />
                     )}
 
-                    {/* Registrations Tab */}
+                   
                     {activeTab === 'registrations' && (
                         <div className="space-y-6">
                             {/* Registration Stats */}

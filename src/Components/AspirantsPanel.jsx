@@ -79,26 +79,82 @@ const AspirantPanel = () => {
         try {
             const subscription = supabase
                 .channel('admin-dashboard')
-                .on('postgres_changes',
-                    { event: 'INSERT', schema: 'public', table: 'user_votes' },
-                    payload => {
-                        console.log('New vote:', payload);
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'user_votes'
+                    },
+                    (payload) => {
+                        console.log('New vote received:', payload);
+                        setVotes(prevVotes => {
+                            const aspirantId = payload.new.aspirant_id;
+                            return {
+                                ...prevVotes,
+                                [aspirantId]: (prevVotes[aspirantId] || 0) + 1
+                            };
+                        });
+
+                        
+                        setStats(prevStats => ({
+                            ...prevStats,
+                            totalVotes: prevStats.totalVotes + 1
+                        }));
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'DELETE',
+                        schema: 'public',
+                        table: 'user_votes'
+                    },
+                    (payload) => {
+                        console.log('Vote removed:', payload);
+                            
                         fetchData();
                     }
                 )
-                .on('postgres_changes',
-                    { event: '*', schema: 'public', table: 'aspirants' },
-                    () => fetchData()
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'aspirants'
+                    },
+                    () => {
+                        console.log('Aspirants changed, refreshing...');
+                        fetchData();
+                    }
                 )
-                .on('postgres_changes',
-                    { event: '*', schema: 'public', table: 'profiles' },
-                    () => fetchData()
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'profiles'
+                    },
+                    () => {
+                        console.log('Profiles changed, refreshing...');
+                        fetchData();
+                    }
                 )
-                .on('postgres_changes',
-                    { event: '*', schema: 'public', table: 'aspirant_registrations' },
-                    () => fetchData()
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'aspirant_registrations'
+                    },
+                    () => {
+                        console.log('Registrations changed, refreshing...');
+                        fetchData();
+                    }
                 )
-                .subscribe();
+                .subscribe((status) => {
+                    console.log('Subscription status:', status);
+                });
 
             return subscription;
         } catch (err) {
@@ -106,7 +162,6 @@ const AspirantPanel = () => {
             return null;
         }
     };
-
     const handleResetVotes = async () => {
         if (!window.confirm('Are you sure you want to reset all votes? This action cannot be undone.')) {
             return;
