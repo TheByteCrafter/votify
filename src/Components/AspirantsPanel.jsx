@@ -196,8 +196,6 @@ const AspirantPanel = () => {
 
     const handleAddAspirant = async (e) => {
         e.preventDefault();
-
-        // Clear previous errors
         setError(null);
 
         // Basic validation

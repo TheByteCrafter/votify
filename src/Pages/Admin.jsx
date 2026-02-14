@@ -39,8 +39,7 @@ export default function AdminPortal() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('dashboard');
     const [showAddModal, setShowAddModal] = useState(false);
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [editingAspirant, setEditingAspirant] = useState(null);
+    
     const [stats, setStats] = useState({
         totalVotes: 0,
         totalVoters: 0,
@@ -59,34 +58,6 @@ export default function AdminPortal() {
         constituency: '',
         ward: ''
     });
-
-  
-    const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
-    const [selectedRegistration, setSelectedRegistration] = useState(null);
-
-  
-    const seats = [
-        'Presidential',
-        'Governor',
-        'Senator',
-        'MP',
-        'Women Rep',
-        'MCA'
-    ];
-
- 
-    const counties = [
-        "Baringo", "Bomet", "Bungoma", "Busia", "Elgeyo-Marakwet", "Embu",
-        "Garissa", "Homa Bay", "Isiolo", "Kajiado", "Kakamega", "Kericho",
-        "Kiambu", "Kilifi", "Kirinyaga", "Kisii", "Kisumu", "Kitui",
-        "Kwale", "Laikipia", "Lamu", "Machakos", "Makueni", "Mandera",
-        "Marsabit", "Meru", "Migori", "Mombasa", "Murang’a", "Nairobi",
-        "Nakuru", "Nandi", "Narok", "Nyamira", "Nyandarua", "Nyeri",
-        "Samburu", "Siaya", "Taita-Taveta", "Tana River", "Tharaka-Nithi",
-        "Trans Nzoia", "Turkana", "Uasin Gishu", "Vihiga", "Wajir",
-        "West Pokot"
-    ];
-
  
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -273,7 +244,7 @@ export default function AdminPortal() {
         const subscription = supabase
             .channel('admin-dashboard')
             .on('postgres_changes',
-                { event: '*', schema: 'public', table: 'votes' },
+                { event: '*', schema: 'public', table: 'user_votes' },
                 () => fetchData()
             )
             .on('postgres_changes',
@@ -339,39 +310,7 @@ export default function AdminPortal() {
         }
     };
 
-    const handleEditAspirant = async (e) => {
-        e.preventDefault();
-        try {
-            const { error } = await supabase
-                .from('aspirants')
-                .update({
-                    name: formData.name,
-                    party: formData.party,
-                    seat: formData.seat,
-                    county: formData.county,
-                    constituency: formData.constituency,
-                    ward: formData.ward
-                })
-                .eq('id', editingAspirant.id);
 
-            if (error) throw error;
-
-            setShowEditModal(false);
-            setEditingAspirant(null);
-            setFormData({
-                name: '',
-                party: '',
-                seat: 'Presidential',
-                county: '',
-                constituency: '',
-                ward: ''
-            });
-            fetchData();
-        } catch (error) {
-            console.error('Error editing aspirant:', error);
-            alert('Failed to edit aspirant. Please try again.');
-        }
-    };
 
     
 
@@ -525,7 +464,6 @@ export default function AdminPortal() {
 
     return (
         <div className="min-h-screen bg-linear-to-br from-gray-50 to-blue-50/30 flex">
-
             <div className="w-64 bg-white border-r border-gray-200 min-h-screen shadow-lg">
                 <div className="p-6 border-b border-gray-200">
                     <div className="flex items-center gap-3">
@@ -604,7 +542,7 @@ export default function AdminPortal() {
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => navigate('/aspirant')}
-                                className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:shadow-lg transition-all"
+                                className="flex items-center gap-2 bg-linear-to-r from-green-600 to-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:shadow-lg transition-all"
                             >
                                 <UserPlus size={18} />
                                 View Registration Portal
@@ -949,8 +887,6 @@ export default function AdminPortal() {
                     {activeTab === 'voters' && (
                         <VoterManagement />
                     )}
-
-                    {/* Analytics Tab */}
                     {activeTab === 'analytics' && (
                         <div className="space-y-8">
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1125,254 +1061,7 @@ export default function AdminPortal() {
                     )}
                 </main>
             </div>
-
-            {/* Add Aspirant Modal */}
-            {showAddModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-2xl w-full max-w-2xl">
-                        <div className="p-6 border-b border-gray-200">
-                            <h3 className="text-xl font-bold text-gray-900">Add New Candidate</h3>
-                        </div>
-                        <form onSubmit={handleAddAspirant} className="p-6 space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">Political Party</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={formData.party}
-                                        onChange={(e) => setFormData({ ...formData, party: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">Position</label>
-                                    <select
-                                        required
-                                        value={formData.seat}
-                                        onChange={(e) => setFormData({ ...formData, seat: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                        {seats.map(seat => (
-                                            <option key={seat} value={seat}>{seat}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">County</label>
-                                    <select
-                                        required
-                                        value={formData.county}
-                                        onChange={(e) => setFormData({ ...formData, county: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                        <option value="">Select County</option>
-                                        {counties.map(county => (
-                                            <option key={county} value={county}>{county}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">Constituency (Optional)</label>
-                                    <input
-                                        type="text"
-                                        value={formData.constituency}
-                                        onChange={(e) => setFormData({ ...formData, constituency: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">Ward (Optional)</label>
-                                    <input
-                                        type="text"
-                                        value={formData.ward}
-                                        onChange={(e) => setFormData({ ...formData, ward: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex justify-end gap-3 pt-6">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAddModal(false)}
-                                    className="px-6 py-2 border border-gray-300 rounded-lg font-bold text-gray-700 hover:bg-gray-50"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-6 py-2 bg-linear-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-bold hover:shadow-lg transition-all"
-                                >
-                                    Add Candidate
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-            {showRegistrationDetails && selectedRegistration && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-2xl w-full max-w-3xl">
-                        <div className="p-6 border-b border-gray-200">
-                            <h3 className="text-xl font-bold text-gray-900">Registration Application Details</h3>
-                        </div>
-                        <div className="p-6 space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <h4 className="font-bold text-gray-900 mb-4">Applicant Information</h4>
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-500">Full Name</label>
-                                            <p className="font-medium text-gray-900">{selectedRegistration.full_name}</p>
-                                        </div>
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-500">Email</label>
-                                            <p className="font-medium text-gray-900">{selectedRegistration.email}</p>
-                                        </div>
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-500">Phone</label>
-                                            <p className="font-medium text-gray-900">{selectedRegistration.phone}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <h4 className="font-bold text-gray-900 mb-4">Political Information</h4>
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-500">Position</label>
-                                            <p className="font-medium text-gray-900">{selectedRegistration.seat}</p>
-                                        </div>
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-500">Political Party</label>
-                                            <p className="font-medium text-gray-900">{selectedRegistration.party}</p>
-                                        </div>
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-500">County</label>
-                                            <p className="font-medium text-gray-900">{selectedRegistration.county}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h4 className="font-bold text-gray-900 mb-4">Submitted Documents</h4>
-                                <div className="space-y-3">
-                                    {selectedRegistration.id_document && (
-                                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                            <div className="flex items-center gap-3">
-                                                <FileText className="h-5 w-5 text-blue-600" />
-                                                <div>
-                                                    <p className="font-medium text-gray-900">National ID Document</p>
-                                                    <p className="text-sm text-gray-500">Verification document</p>
-                                                </div>
-                                            </div>
-                                            <a
-                                                href={selectedRegistration.id_document}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-blue-600 hover:text-blue-800 font-medium"
-                                            >
-                                                View Document
-                                            </a>
-                                        </div>
-                                    )}
-                                    {selectedRegistration.party_certificate && (
-                                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                            <div className="flex items-center gap-3">
-                                                <FileText className="h-5 w-5 text-green-600" />
-                                                <div>
-                                                    <p className="font-medium text-gray-900">Party Membership Certificate</p>
-                                                    <p className="text-sm text-gray-500">Political party verification</p>
-                                                </div>
-                                            </div>
-                                            <a
-                                                href={selectedRegistration.party_certificate}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-green-600 hover:text-green-800 font-medium"
-                                            >
-                                                View Document
-                                            </a>
-                                        </div>
-                                    )}
-                                    {selectedRegistration.other_document && (
-                                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                            <div className="flex items-center gap-3">
-                                                <FileText className="h-5 w-5 text-purple-600" />
-                                                <div>
-                                                    <p className="font-medium text-gray-900">Additional Document</p>
-                                                    <p className="text-sm text-gray-500">Supporting documentation</p>
-                                                </div>
-                                            </div>
-                                            <a
-                                                href={selectedRegistration.other_document}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-purple-600 hover:text-purple-800 font-medium"
-                                            >
-                                                View Document
-                                            </a>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div>
-                                <h4 className="font-bold text-gray-900 mb-4">Application Status</h4>
-                                <div className="flex items-center gap-4">
-                                    <div className={`px-4 py-2 rounded-lg ${selectedRegistration.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                        selectedRegistration.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        <span className="font-bold">{selectedRegistration.status.charAt(0).toUpperCase() + selectedRegistration.status.slice(1)}</span>
-                                    </div>
-                                    <div className="text-sm text-gray-500">
-                                        Applied on {new Date(selectedRegistration.created_at).toLocaleDateString()}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {selectedRegistration.status === 'pending' && (
-                                <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRejectRegistration(selectedRegistration.id)}
-                                        className="px-6 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg font-bold hover:shadow-lg transition-all"
-                                    >
-                                        Reject Application
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleApproveRegistration(selectedRegistration.id)}
-                                        className="px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg font-bold hover:shadow-lg transition-all"
-                                    >
-                                        Approve & Add to Candidates
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                        <div className="p-6 border-t border-gray-200">
-                            <button
-                                onClick={() => {
-                                    setShowRegistrationDetails(false);
-                                    setSelectedRegistration(null);
-                                }}
-                                className="w-full px-6 py-2 border border-gray-300 rounded-lg font-bold text-gray-700 hover:bg-gray-50"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            
         </div>
     );
 }
