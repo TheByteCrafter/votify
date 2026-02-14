@@ -75,6 +75,10 @@ const AspirantPanel = () => {
         }
     }, [error, success]);
 
+    useEffect(() => {
+        console.log('Votes state updated:', votes);
+    }, [votes]);
+
     const setupRealtimeSubscription = () => {
         try {
             const subscription = supabase
@@ -88,15 +92,19 @@ const AspirantPanel = () => {
                     },
                     (payload) => {
                         console.log('New vote received:', payload);
+
+                        // Update votes state with proper object spread
                         setVotes(prevVotes => {
                             const aspirantId = payload.new.aspirant_id;
-                            return {
+                            const newVotes = {
                                 ...prevVotes,
                                 [aspirantId]: (prevVotes[aspirantId] || 0) + 1
                             };
+                            console.log('Updated votes:', newVotes);
+                            return newVotes;
                         });
 
-                        
+                        // Update stats
                         setStats(prevStats => ({
                             ...prevStats,
                             totalVotes: prevStats.totalVotes + 1
@@ -112,8 +120,26 @@ const AspirantPanel = () => {
                     },
                     (payload) => {
                         console.log('Vote removed:', payload);
-                            
-                        fetchData();
+                        // For deletes, we need to know which aspirant lost a vote
+                        // Since payload.old might contain the aspirant_id
+                        if (payload.old && payload.old.aspirant_id) {
+                            setVotes(prevVotes => {
+                                const aspirantId = payload.old.aspirant_id;
+                                const newVotes = {
+                                    ...prevVotes,
+                                    [aspirantId]: Math.max(0, (prevVotes[aspirantId] || 0) - 1)
+                                };
+                                return newVotes;
+                            });
+
+                            setStats(prevStats => ({
+                                ...prevStats,
+                                totalVotes: Math.max(0, prevStats.totalVotes - 1)
+                            }));
+                        } else {
+                            // If we can't get the aspirant_id, do a full refresh
+                            fetchData();
+                        }
                     }
                 )
                 .on(
@@ -154,6 +180,9 @@ const AspirantPanel = () => {
                 )
                 .subscribe((status) => {
                     console.log('Subscription status:', status);
+                    if (status === 'SUBSCRIBED') {
+                        console.log('Successfully subscribed to realtime changes');
+                    }
                 });
 
             return subscription;
@@ -162,6 +191,7 @@ const AspirantPanel = () => {
             return null;
         }
     };
+
     const handleResetVotes = async () => {
         if (!window.confirm('Are you sure you want to reset all votes? This action cannot be undone.')) {
             return;
