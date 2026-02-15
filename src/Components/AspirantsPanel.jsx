@@ -518,10 +518,10 @@ const AspirantPanel = ({
                             fontSize: 10,
                             halign: 'center'
                         },
-                        alternateRowStyles: { fillColor: [245, 245, 245] }, // Light gray
+                        alternateRowStyles: { fillColor: [245, 245, 245] },
                         didParseCell: (data) => {
                             if (data.row.index === 0) {
-                                data.cell.styles.fillColor = [255, 247, 237]; // Light orange
+                                data.cell.styles.fillColor = [255, 247, 237]; 
                                 data.cell.styles.fontStyle = 'bold';
                             }
                         }
