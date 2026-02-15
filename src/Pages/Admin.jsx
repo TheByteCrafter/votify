@@ -355,20 +355,26 @@ export default function AdminPortal() {
 
                 // IMPORTANT: Use EXACTLY the variable names from your template
                 const templateParams = {
-                    // Your template uses {{name}} - so we need to send 'name'
+                    
                     name: registration.full_name,
-
-                    // Your template likely needs an email variable - check your template
-                    // Common patterns: {{email}}, {{to_email}}, {{recipient}}
-                    email: registration.email,        // Try this first
-                    // to_email: registration.email,  // Uncomment if email doesn't work
-
-                    // Add any other variables your template uses
                     party: registration.party,
                     seat: registration.seat,
                     county: registration.county || 'Not specified',
-                    message: `Your aspirant registration for ${registration.seat} has been approved.`
+                    constituency: registration.constituency || 'Not specified',
+                    ward: registration.ward || 'Not specified',
+                    email: registration.email,
+
+                    // Dynamic data
+                    approval_date: new Date().toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    }),
+                    support_phone: '+254 712 345 678',
+                    current_year: new Date().getFullYear().toString()
                 };
+
+
 
                 console.log('📧 Sending approval email with params:', templateParams);
 
@@ -425,12 +431,12 @@ export default function AdminPortal() {
 
             if (error) throw error;
 
-            // 2. SEND REJECTION EMAIL
+            
             let emailSent = false;
 
             try {
                 const templateParams = {
-                    // Personal details
+                    
                     name: registration.full_name,
                     party: registration.party,
                     seat: registration.seat,
