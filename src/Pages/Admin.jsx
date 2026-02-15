@@ -317,7 +317,8 @@ export default function AdminPortal() {
             const result = await fetch(`${API_URL}/voters/send-email`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json', 
+                    'Accept': 'application/json' 
                  
                 },
                 body: JSON.stringify({
@@ -360,6 +361,7 @@ export default function AdminPortal() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                     'Accept': 'application/json' 
                     
                 },
                 body: JSON.stringify({
