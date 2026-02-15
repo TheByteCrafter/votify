@@ -616,7 +616,6 @@ const VoterManagement = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  {/* ID Number */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                       ID Number
@@ -681,7 +680,6 @@ const VoterManagement = () => {
                     </div>
                   </div>
 
-                  {/* County */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                       County
@@ -701,7 +699,6 @@ const VoterManagement = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Constituency */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                       Constituency
@@ -718,8 +715,6 @@ const VoterManagement = () => {
                       onChange={e => handleInputChange('constituency', e.target.value)}
                     />
                   </div>
-
-                  {/* Ward */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                       Ward

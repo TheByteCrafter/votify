@@ -47,7 +47,7 @@ function App() {
 
 
   useEffect(() => {
-    // Initialize EmailJS once when the app loads
+    
     emailjs.init(import.meta.env.VITE_EMAILJS_PUBLIC_KEY);
     console.log(' EmailJS initialized');
   }, []);
@@ -70,11 +70,7 @@ function App() {
         debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'unknown',
         Intl.DateTimeFormat().resolvedOptions().timeZone
       ];
-
-      // Create a hash
       const fingerprint = btoa(components.join('|')).replace(/=/g, '');
-
-      // Store in localStorage as backup but server is primary
       localStorage.setItem('device_fingerprint', fingerprint);
 
       return fingerprint;
@@ -116,8 +112,6 @@ function App() {
       const deviceFingerprint = deviceId || localStorage.getItem('device_fingerprint') || generateDeviceFingerprint();
       const clientIP = ip || localStorage.getItem('client_ip') || await getClientIP();
       const userAgent = navigator.userAgent;
-
-      // Get all potential identifiers
       const bannedEmail = email || localStorage.getItem('banned_email');
       const bannedIP = localStorage.getItem('banned_ip');
       const bannedDevice = localStorage.getItem('banned_device');
@@ -147,19 +141,15 @@ function App() {
           banType: data.banType || 'hybrid',
           banReason: data.banReason || 'Multiple security violations detected'
         });
-
-        // Persist ALL ban identifiers
         if (data.bannedEmail) localStorage.setItem('banned_email', data.bannedEmail);
         if (data.bannedIP) localStorage.setItem('banned_ip', data.bannedIP);
         if (data.bannedDevice) localStorage.setItem('banned_device', data.bannedDevice);
         localStorage.setItem('ban_active', 'true');
         localStorage.setItem('ban_timestamp', new Date().toISOString());
-
-        // Clear any existing session
         await supabase.auth.signOut();
         setSession(null);
       } else {
-        // No active ban
+
         setIsBanned(false);
         ['ban_active', 'banned_email', 'banned_ip', 'banned_device', 'ban_timestamp'].forEach(
           key => localStorage.removeItem(key)
@@ -174,7 +164,6 @@ function App() {
     }
   };
 
-  // 🔴 Initialize security on app load
   useEffect(() => {
     const initializeSecurity = async () => {
       setLoading(true);

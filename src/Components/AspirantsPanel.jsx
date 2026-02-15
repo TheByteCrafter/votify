@@ -119,7 +119,7 @@ const AspirantPanel = ({
     };
 
 
-    const handlePrintElectionResults = async () => {
+   const handlePrintElectionResults = async () => {
     try {
         // Fetch data with proper relationship
         const { data, error } = await supabase
@@ -143,27 +143,53 @@ const AspirantPanel = ({
         // FIXED: Properly extract vote counts from the count object
         const processedData = data.map(a => ({
             ...a,
-            // Extract the actual count from the user_votes array
             voteCount: a.user_votes?.[0]?.count || 0
         }));
 
-        // Group results by seat
-        const resultsBySeat = {};
+        // Group results by seat AND county for seats that need county breakdown
+        const seatsByCounty = {};
+        const nationalSeats = {};
+        
         processedData.forEach(a => {
             const seat = a.seat;
-            if (!resultsBySeat[seat]) {
-                resultsBySeat[seat] = [];
+            const county = a.county || 'N/A';
+            
+            // Determine if seat should be grouped by county
+            // Seats that vary by county
+            const countyBasedSeats = ['Governor', 'Senator', 'Woman Representative', 'County Assembly'];
+            
+            if (countyBasedSeats.includes(seat)) {
+                // Group by seat + county
+                const key = `${seat} - ${county}`;
+                if (!seatsByCounty[key]) {
+                    seatsByCounty[key] = [];
+                }
+                seatsByCounty[key].push({
+                    id: a.id,
+                    candidate: a.name,
+                    party: a.party,
+                    seat: seat,
+                    county: county,
+                    constituency: a.constituency || 'N/A',
+                    ward: a.ward || 'N/A',
+                    votes: a.voteCount
+                });
+            } else {
+                // National seats (President, etc.)
+                if (!nationalSeats[seat]) {
+                    nationalSeats[seat] = [];
+                }
+                nationalSeats[seat].push({
+                    id: a.id,
+                    candidate: a.name,
+                    party: a.party,
+                    seat: seat,
+                    county: county,
+                    constituency: a.constituency || 'N/A',
+                    ward: a.ward || 'N/A',
+                    votes: a.voteCount
+                });
             }
-            resultsBySeat[seat].push({
-                id: a.id,
-                candidate: a.name,
-                party: a.party,
-                seat: a.seat,
-                county: a.county || 'N/A',
-                constituency: a.constituency || 'N/A',
-                ward: a.ward || 'N/A',
-                votes: a.voteCount  // Use the extracted count instead of .length
-            });
         });
 
         // Create new PDF document
@@ -222,58 +248,67 @@ const AspirantPanel = ({
             minute: '2-digit'
         }), 55, 72);
 
-        // Overall statistics in a clean grid
+        // Overall statistics
         const totalOverallVotes = processedData.reduce((sum, a) => sum + a.voteCount, 0);
-        const totalSeats = Object.keys(resultsBySeat).length;
+        const totalSeats = Object.keys(nationalSeats).length + Object.keys(seatsByCounty).length;
+        const totalCounties = new Set(processedData.map(a => a.county).filter(c => c && c !== 'N/A')).size;
         const totalCandidates = processedData.length;
 
+        // Stats cards
         doc.setFillColor(239, 246, 255);
-        doc.roundedRect(20, 90, (doc.internal.pageSize.width - 60) / 3, 25, 2, 2, 'F');
-        doc.setFontSize(10);
+        doc.roundedRect(20, 90, (doc.internal.pageSize.width - 70) / 4, 25, 2, 2, 'F');
+        doc.setFontSize(9);
         doc.setTextColor(29, 78, 216);
         doc.setFont('helvetica', 'bold');
-        doc.text('TOTAL VOTES', 20 + ((doc.internal.pageSize.width - 60) / 6), 100, { align: 'center' });
-        doc.setFontSize(16);
+        doc.text('TOTAL VOTES', 20 + ((doc.internal.pageSize.width - 70) / 8), 100, { align: 'center' });
+        doc.setFontSize(14);
         doc.setTextColor(31, 41, 55);
-        doc.text(totalOverallVotes.toLocaleString(), 20 + ((doc.internal.pageSize.width - 60) / 6), 110, { align: 'center' });
+        doc.text(totalOverallVotes.toLocaleString(), 20 + ((doc.internal.pageSize.width - 70) / 8), 110, { align: 'center' });
 
         doc.setFillColor(236, 253, 245);
-        doc.roundedRect(20 + ((doc.internal.pageSize.width - 60) / 3) + 10, 90, (doc.internal.pageSize.width - 60) / 3, 25, 2, 2, 'F');
-        doc.setFontSize(10);
+        doc.roundedRect(20 + ((doc.internal.pageSize.width - 70) / 4) + 10, 90, (doc.internal.pageSize.width - 70) / 4, 25, 2, 2, 'F');
+        doc.setFontSize(9);
         doc.setTextColor(4, 120, 87);
-        doc.setFont('helvetica', 'bold');
-        doc.text('POSITIONS', 20 + ((doc.internal.pageSize.width - 60) / 3) + 10 + ((doc.internal.pageSize.width - 60) / 6), 100, { align: 'center' });
-        doc.setFontSize(16);
+        doc.text('COUNTIES', 20 + ((doc.internal.pageSize.width - 70) / 4) + 10 + ((doc.internal.pageSize.width - 70) / 8), 100, { align: 'center' });
+        doc.setFontSize(14);
         doc.setTextColor(31, 41, 55);
-        doc.text(totalSeats.toString(), 20 + ((doc.internal.pageSize.width - 60) / 3) + 10 + ((doc.internal.pageSize.width - 60) / 6), 110, { align: 'center' });
+        doc.text(totalCounties.toString(), 20 + ((doc.internal.pageSize.width - 70) / 4) + 10 + ((doc.internal.pageSize.width - 70) / 8), 110, { align: 'center' });
 
         doc.setFillColor(254, 242, 242);
-        doc.roundedRect(20 + (2 * ((doc.internal.pageSize.width - 60) / 3)) + 20, 90, (doc.internal.pageSize.width - 60) / 3, 25, 2, 2, 'F');
-        doc.setFontSize(10);
+        doc.roundedRect(20 + (2 * ((doc.internal.pageSize.width - 70) / 4)) + 20, 90, (doc.internal.pageSize.width - 70) / 4, 25, 2, 2, 'F');
+        doc.setFontSize(9);
         doc.setTextColor(185, 28, 28);
-        doc.setFont('helvetica', 'bold');
-        doc.text('CANDIDATES', 20 + (2 * ((doc.internal.pageSize.width - 60) / 3)) + 20 + ((doc.internal.pageSize.width - 60) / 6), 100, { align: 'center' });
-        doc.setFontSize(16);
+        doc.text('POSITIONS', 20 + (2 * ((doc.internal.pageSize.width - 70) / 4)) + 20 + ((doc.internal.pageSize.width - 70) / 8), 100, { align: 'center' });
+        doc.setFontSize(14);
         doc.setTextColor(31, 41, 55);
-        doc.text(totalCandidates.toString(), 20 + (2 * ((doc.internal.pageSize.width - 60) / 3)) + 20 + ((doc.internal.pageSize.width - 60) / 6), 110, { align: 'center' });
+        doc.text(totalSeats.toString(), 20 + (2 * ((doc.internal.pageSize.width - 70) / 4)) + 20 + ((doc.internal.pageSize.width - 70) / 8), 110, { align: 'center' });
 
-        // SEAT-BY-SEAT SUMMARY HEADER
+        doc.setFillColor(255, 247, 237);
+        doc.roundedRect(20 + (3 * ((doc.internal.pageSize.width - 70) / 4)) + 30, 90, (doc.internal.pageSize.width - 70) / 4, 25, 2, 2, 'F');
+        doc.setFontSize(9);
+        doc.setTextColor(194, 65, 12);
+        doc.text('CANDIDATES', 20 + (3 * ((doc.internal.pageSize.width - 70) / 4)) + 30 + ((doc.internal.pageSize.width - 70) / 8), 100, { align: 'center' });
+        doc.setFontSize(14);
+        doc.setTextColor(31, 41, 55);
+        doc.text(totalCandidates.toString(), 20 + (3 * ((doc.internal.pageSize.width - 70) / 4)) + 30 + ((doc.internal.pageSize.width - 70) / 8), 110, { align: 'center' });
+
+        // SUMMARY HEADER
         doc.setFontSize(16);
         doc.setTextColor(0, 128, 0);
         doc.setFont('helvetica', 'bold');
-        doc.text('SEAT-BY-SEAT SUMMARY', doc.internal.pageSize.width / 2, 140, { align: 'center' });
+        doc.text('SUMMARY OF RESULTS BY POSITION', doc.internal.pageSize.width / 2, 140, { align: 'center' });
 
-        // Prepare seat summary data
-        const seatSummaries = [];
-        
-        Object.keys(resultsBySeat).forEach(seat => {
-            const candidates = resultsBySeat[seat];
+        // Prepare summary data - National seats first
+        const nationalSummaries = [];
+        Object.keys(nationalSeats).forEach(seat => {
+            const candidates = nationalSeats[seat];
             const seatTotalVotes = candidates.reduce((sum, c) => sum + c.votes, 0);
             const sortedCandidates = candidates.sort((a, b) => b.votes - a.votes);
             const winner = sortedCandidates[0];
             
-            seatSummaries.push({
+            nationalSummaries.push({
                 seat,
+                region: 'NATIONAL',
                 totalVotes: seatTotalVotes,
                 candidatesCount: candidates.length,
                 winnerName: winner.candidate,
@@ -283,25 +318,65 @@ const AspirantPanel = ({
             });
         });
 
-        // Sort seats alphabetically
-        seatSummaries.sort((a, b) => a.seat.localeCompare(b.seat));
+        // County-based seats summaries
+        const countySummaries = [];
+        Object.keys(seatsByCounty).forEach(key => {
+            const [seat, county] = key.split(' - ');
+            const candidates = seatsByCounty[key];
+            const seatTotalVotes = candidates.reduce((sum, c) => sum + c.votes, 0);
+            const sortedCandidates = candidates.sort((a, b) => b.votes - a.votes);
+            const winner = sortedCandidates[0];
+            
+            countySummaries.push({
+                seat,
+                county,
+                totalVotes: seatTotalVotes,
+                candidatesCount: candidates.length,
+                winnerName: winner.candidate,
+                winnerParty: winner.party,
+                winnerVotes: winner.votes,
+                winnerPercentage: seatTotalVotes ? ((winner.votes / seatTotalVotes) * 100) : 0
+            });
+        });
 
-        // Create summary table
+        // Sort summaries
+        nationalSummaries.sort((a, b) => a.seat.localeCompare(b.seat));
+        countySummaries.sort((a, b) => {
+            if (a.seat === b.seat) {
+                return a.county.localeCompare(b.county);
+            }
+            return a.seat.localeCompare(b.seat);
+        });
+
+        // Create summary table - First page shows National seats
         autoTable(doc, {
             startY: 150,
-            head: [['Position', 'Total Votes', 'Winner', 'Party', 'Votes', '%']],
-            body: seatSummaries.map(s => [
-                s.seat,
-                s.totalVotes.toLocaleString(),
-                s.winnerName,
-                s.winnerParty,
-                s.winnerVotes.toLocaleString(),
-                s.winnerPercentage.toFixed(1) + '%'
-            ]),
-            margin: { left: 20, right: 20 },
+            head: [['Position', 'Region/County', 'Total Votes', 'Winner', 'Party', 'Votes', '%']],
+            body: [
+                ...nationalSummaries.map(s => [
+                    s.seat,
+                    s.region,
+                    s.totalVotes.toLocaleString(),
+                    s.winnerName,
+                    s.winnerParty,
+                    s.winnerVotes.toLocaleString(),
+                    s.winnerPercentage.toFixed(1) + '%'
+                ]),
+                [{ content: 'COUNTY RESULTS', colSpan: 7, styles: { fillColor: [0, 128, 0], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' } }],
+                ...countySummaries.map(s => [
+                    s.seat,
+                    s.county,
+                    s.totalVotes.toLocaleString(),
+                    s.winnerName,
+                    s.winnerParty,
+                    s.winnerVotes.toLocaleString(),
+                    s.winnerPercentage.toFixed(1) + '%'
+                ])
+            ],
+            margin: { left: 15, right: 15 },
             styles: {
-                fontSize: 10,
-                cellPadding: 5,
+                fontSize: 9,
+                cellPadding: 4,
                 lineColor: [229, 231, 235],
                 lineWidth: 0.5,
                 textColor: [31, 41, 55]
@@ -309,30 +384,31 @@ const AspirantPanel = ({
             headStyles: {
                 fillColor: [0, 128, 0],
                 textColor: [255, 255, 255],
-                fontSize: 11,
+                fontSize: 10,
                 fontStyle: 'bold',
                 halign: 'center',
                 lineWidth: 0
             },
             columnStyles: {
-                0: { cellWidth: 40, fontStyle: 'bold' },
-                1: { halign: 'right', cellWidth: 25 },
-                2: { cellWidth: 50 },
-                3: { cellWidth: 30 },
-                4: { halign: 'right', cellWidth: 25 },
-                5: { halign: 'right', cellWidth: 20 }
+                0: { cellWidth: 35, fontStyle: 'bold' },
+                1: { cellWidth: 30 },
+                2: { halign: 'right', cellWidth: 20 },
+                3: { cellWidth: 40 },
+                4: { cellWidth: 25 },
+                5: { halign: 'right', cellWidth: 20 },
+                6: { halign: 'right', cellWidth: 15 }
             },
             alternateRowStyles: {
                 fillColor: [249, 250, 251]
+            },
+            didParseCell: (data) => {
+                if (data.row.index === nationalSummaries.length) {
+                    data.cell.styles.fillColor = [0, 128, 0];
+                    data.cell.styles.textColor = [255, 255, 255];
+                    data.cell.styles.fontStyle = 'bold';
+                }
             }
         });
-
-        // Add a note about the summary
-        const finalY = doc.lastAutoTable.finalY + 10;
-        doc.setFontSize(9);
-        doc.setTextColor(107, 114, 128);
-        doc.setFont('helvetica', 'italic');
-        doc.text('Note: Percentages shown are based on total votes cast in each respective position.', 20, finalY);
 
         // Add footer for first page
         doc.setDrawColor(0, 128, 0);
@@ -343,17 +419,18 @@ const AspirantPanel = ({
         doc.text('Independent Electoral Commission - Official Results', 20, doc.internal.pageSize.height - 10);
         doc.text(`Page 1 of ?`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10, { align: 'right' });
 
-        // Detailed results pages
+        // DETAILED RESULTS PAGES
         let pageNumber = 2;
-        
-        Object.keys(resultsBySeat).forEach(seat => {
+
+        // First, detailed pages for national seats
+        Object.keys(nationalSeats).forEach(seat => {
             doc.addPage();
             
             // Page header
             doc.setFillColor(0, 128, 0);
             doc.rect(0, 0, doc.internal.pageSize.width, 10, 'F');
             
-            const candidates = resultsBySeat[seat];
+            const candidates = nationalSeats[seat];
             const seatTotalVotes = candidates.reduce((sum, c) => sum + c.votes, 0);
             const sortedCandidates = candidates
                 .map(c => ({
@@ -362,34 +439,37 @@ const AspirantPanel = ({
                 }))
                 .sort((a, b) => b.votes - a.votes);
 
-            // Seat header with styling
+            // Seat header
             doc.setFontSize(20);
             doc.setTextColor(0, 128, 0);
             doc.setFont('helvetica', 'bold');
-            doc.text(seat, doc.internal.pageSize.width / 2, 25, { align: 'center' });
+            doc.text(seat.toUpperCase(), doc.internal.pageSize.width / 2, 25, { align: 'center' });
+            doc.setFontSize(12);
+            doc.setTextColor(75, 85, 99);
+            doc.text('NATIONAL RESULTS', doc.internal.pageSize.width / 2, 33, { align: 'center' });
 
-            // Seat statistics in a clean box
+            // Statistics box
             doc.setFillColor(239, 246, 255);
-            doc.roundedRect(20, 35, doc.internal.pageSize.width - 40, 20, 2, 2, 'F');
+            doc.roundedRect(20, 40, doc.internal.pageSize.width - 40, 20, 2, 2, 'F');
             
             doc.setFontSize(11);
             doc.setTextColor(31, 41, 55);
             doc.setFont('helvetica', 'normal');
-            doc.text(`Total Votes: ${seatTotalVotes.toLocaleString()}`, 30, 48);
-            doc.text(`Candidates: ${candidates.length}`, 100, 48);
-            doc.text(`Winner: ${sortedCandidates[0].candidate} (${sortedCandidates[0].party})`, 150, 48);
+            doc.text(`Total Votes: ${seatTotalVotes.toLocaleString()}`, 30, 53);
+            doc.text(`Candidates: ${candidates.length}`, 100, 53);
+            doc.text(`Winner: ${sortedCandidates[0].candidate} (${sortedCandidates[0].party})`, 150, 53);
 
             // Detailed results table
             autoTable(doc, {
-                startY: 65,
-                head: [['Position', 'Candidate', 'Party', 'County', 'Votes', 'Share']],
+                startY: 70,
+                head: [['Rank', 'Candidate', 'Party', 'County', 'Votes', 'Share']],
                 body: sortedCandidates.map((c, idx) => [
                     idx + 1,
                     c.candidate,
                     c.party,
                     c.county,
                     c.votes.toLocaleString(),
-                    c.percentage.toFixed(1) + '%'
+                    c.percentage.toFixed(2) + '%'
                 ]),
                 margin: { left: 20, right: 20 },
                 styles: {
@@ -409,7 +489,7 @@ const AspirantPanel = ({
                     0: { halign: 'center', cellWidth: 15 },
                     1: { cellWidth: 55 },
                     2: { cellWidth: 30 },
-                    3: { cellWidth: 35 },
+                    3: { cellWidth: 30 },
                     4: { halign: 'right', cellWidth: 25 },
                     5: { halign: 'right', cellWidth: 20 }
                 },
@@ -433,6 +513,114 @@ const AspirantPanel = ({
             pageNumber++;
         });
 
+        // Then detailed pages for county-based seats, grouped by seat type
+        const seatsByType = {};
+        countySummaries.forEach(summary => {
+            if (!seatsByType[summary.seat]) {
+                seatsByType[summary.seat] = [];
+            }
+            seatsByType[summary.seat].push(summary.county);
+        });
+
+        Object.keys(seatsByType).forEach(seatType => {
+            const counties = seatsByType[seatType].sort();
+            
+            counties.forEach(county => {
+                const key = `${seatType} - ${county}`;
+                const candidates = seatsByCounty[key];
+                
+                if (candidates) {
+                    doc.addPage();
+                    
+                    // Page header
+                    doc.setFillColor(0, 128, 0);
+                    doc.rect(0, 0, doc.internal.pageSize.width, 10, 'F');
+                    
+                    const seatTotalVotes = candidates.reduce((sum, c) => sum + c.votes, 0);
+                    const sortedCandidates = candidates
+                        .map(c => ({
+                            ...c,
+                            percentage: seatTotalVotes ? ((c.votes / seatTotalVotes) * 100) : 0
+                        }))
+                        .sort((a, b) => b.votes - a.votes);
+
+                    // Header with county
+                    doc.setFontSize(16);
+                    doc.setTextColor(0, 128, 0);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(seatType.toUpperCase(), doc.internal.pageSize.width / 2, 20, { align: 'center' });
+                    
+                    doc.setFontSize(20);
+                    doc.setTextColor(31, 41, 55);
+                    doc.text(county.toUpperCase(), doc.internal.pageSize.width / 2, 32, { align: 'center' });
+
+                    // Statistics box
+                    doc.setFillColor(239, 246, 255);
+                    doc.roundedRect(20, 45, doc.internal.pageSize.width - 40, 20, 2, 2, 'F');
+                    
+                    doc.setFontSize(11);
+                    doc.setTextColor(31, 41, 55);
+                    doc.text(`Total Votes: ${seatTotalVotes.toLocaleString()}`, 30, 58);
+                    doc.text(`Candidates: ${candidates.length}`, 100, 58);
+                    doc.text(`Winner: ${sortedCandidates[0].candidate} (${sortedCandidates[0].party})`, 150, 58);
+
+                    // Detailed results table
+                    autoTable(doc, {
+                        startY: 75,
+                        head: [['Rank', 'Candidate', 'Party', 'Constituency', 'Votes', 'Share']],
+                        body: sortedCandidates.map((c, idx) => [
+                            idx + 1,
+                            c.candidate,
+                            c.party,
+                            c.constituency,
+                            c.votes.toLocaleString(),
+                            c.percentage.toFixed(2) + '%'
+                        ]),
+                        margin: { left: 20, right: 20 },
+                        styles: {
+                            fontSize: 9,
+                            cellPadding: 4,
+                            lineColor: [229, 231, 235],
+                            lineWidth: 0.5
+                        },
+                        headStyles: {
+                            fillColor: [0, 128, 0],
+                            textColor: [255, 255, 255],
+                            fontSize: 10,
+                            fontStyle: 'bold',
+                            halign: 'center'
+                        },
+                        columnStyles: {
+                            0: { halign: 'center', cellWidth: 15 },
+                            1: { cellWidth: 50 },
+                            2: { cellWidth: 30 },
+                            3: { cellWidth: 35 },
+                            4: { halign: 'right', cellWidth: 25 },
+                            5: { halign: 'right', cellWidth: 20 }
+                        },
+                        didParseCell: (data) => {
+                            if (data.section === 'body' && data.row.index === 0) {
+                                data.cell.styles.fillColor = [255, 247, 237];
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+                        }
+                    });
+
+                    // Page footer
+                    doc.setDrawColor(0, 128, 0);
+                    doc.line(20, doc.internal.pageSize.height - 20, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 20);
+                    
+                    doc.setFontSize(8);
+                    doc.setTextColor(107, 114, 128);
+                    doc.text('Independent Electoral Commission - Official Results', 20, doc.internal.pageSize.height - 10);
+                    doc.text(`Page ${pageNumber} of ?`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10, { align: 'right' });
+                    
+                    pageNumber++;
+                }
+            });
+        });
+
+       
         // Save the PDF
         doc.save(`Election_Results_${new Date().toISOString().split('T')[0]}.pdf`);
 
@@ -441,7 +629,6 @@ const AspirantPanel = ({
         alert('Failed to generate election results. Please try again.');
     }
 };
-
     const handleAddAspirant = async (e) => {
         e.preventDefault();
         setError(null);
