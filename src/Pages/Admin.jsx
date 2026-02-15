@@ -350,7 +350,7 @@ export default function AdminPortal() {
 
             const registration = registrations.find(r => r.id === registrationId);
 
-            const token = await supabase.auth.getSession();
+         
 
             const { error } = await supabase
                 .from('aspirant_registrations')
