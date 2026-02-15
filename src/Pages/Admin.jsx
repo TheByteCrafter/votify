@@ -353,8 +353,8 @@ export default function AdminPortal() {
 
             if (error) throw error;
 
-            //send email to aspirantEmail about rejection (not implemented yet)
-            const result=await fetch(`${API_URL}/voters/send-email`, {
+            //send email to aspirantEmail about rejection 
+            const result=await fetch(`${API_URL}/api/voters/send-email`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
