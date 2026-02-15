@@ -24,7 +24,7 @@ const AspirantPanel = ({
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingAspirant, setEditingAspirant] = useState(null);
-
+    const [isloading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         party: '',
@@ -121,8 +121,10 @@ const AspirantPanel = ({
 
     const handlePrintElectionResults = async () => {
         try {
-            // Fetch data with proper relationship
-            const { data, error } = await supabase
+            setLoading(true);
+
+            // Fetch aspirants with their vote counts
+            const { data: aspirantsData, error: aspirantsError } = await supabase
                 .from("aspirants")
                 .select(`
                 id,
@@ -131,631 +133,504 @@ const AspirantPanel = ({
                 seat,
                 county,
                 constituency,
-                ward,
-                user_votes(count)
+                ward
             `);
 
-            if (error) {
-                console.error("Error fetching results:", error);
-                return;
-            }
+            if (aspirantsError) throw aspirantsError;
 
-            // Extract vote counts
-            const processedData = data.map(a => ({
-                ...a,
-                voteCount: a.user_votes?.[0]?.count || 0
-            }));
+            // Fetch all votes
+            const { data: votesData, error: votesError } = await supabase
+                .from("user_votes")
+                .select("aspirant_id");
 
-            // Comprehensive seat configuration for ALL positions
-            const seatConfig = {
-                // NATIONAL SEATS (1 result total)
-                'President': {
-                    type: 'national',
-                    level: 'country',
-                    displayName: 'PRESIDENT',
-                    hierarchy: ['country'],
-                    geographicColumns: []
-                },
+            if (votesError) throw votesError;
 
-                // COUNTY SEATS (47 results - one per county)
-                'Governor': {
-                    type: 'county',
-                    level: 'county',
-                    displayName: 'GOVERNOR',
-                    hierarchy: ['county'],
-                    geographicColumns: ['county']
-                },
-                'Senator': {
-                    type: 'county',
-                    level: 'county',
-                    displayName: 'SENATOR',
-                    hierarchy: ['county'],
-                    geographicColumns: ['county']
-                },
-                'Woman Representative': {
-                    type: 'county',
-                    level: 'county',
-                    displayName: 'WOMAN REPRESENTATIVE',
-                    hierarchy: ['county'],
-                    geographicColumns: ['county']
-                },
-
-                // CONSTITUENCY SEATS (290 results - one per constituency)
-                'Member of Parliament': {
-                    type: 'constituency',
-                    level: 'constituency',
-                    displayName: 'MEMBER OF PARLIAMENT',
-                    hierarchy: ['county', 'constituency'],
-                    geographicColumns: ['county', 'constituency']
-                },
-                'MP': { // Alternative name
-                    type: 'constituency',
-                    level: 'constituency',
-                    displayName: 'MEMBER OF PARLIAMENT',
-                    hierarchy: ['county', 'constituency'],
-                    geographicColumns: ['county', 'constituency']
-                },
-
-                // WARD SEATS (1450 results - one per ward)
-                'Member of County Assembly': {
-                    type: 'ward',
-                    level: 'ward',
-                    displayName: 'MEMBER OF COUNTY ASSEMBLY',
-                    hierarchy: ['county', 'constituency', 'ward'],
-                    geographicColumns: ['county', 'constituency', 'ward']
-                },
-                'MCA': { // Alternative name
-                    type: 'ward',
-                    level: 'ward',
-                    displayName: 'MEMBER OF COUNTY ASSEMBLY',
-                    hierarchy: ['county', 'constituency', 'ward'],
-                    geographicColumns: ['county', 'constituency', 'ward']
-                },
-
-                // SPECIAL SEATS (if applicable)
-                'County Woman Representative': {
-                    type: 'county',
-                    level: 'county',
-                    displayName: 'COUNTY WOMAN REPRESENTATIVE',
-                    hierarchy: ['county'],
-                    geographicColumns: ['county']
-                }
-            };
-
-            // Organize results by seat type
-            const organizedResults = {
-                national: [],      // President
-                county: [],        // Governor, Senator, Woman Rep
-                constituency: [],  // MP
-                ward: []          // MCA
-            };
-
-            // Process each aspirant
-            processedData.forEach(a => {
-                const config = seatConfig[a.seat];
-                if (!config) {
-                    console.warn(`Unknown seat type: ${a.seat}`);
-                    return;
-                }
-
-                const resultItem = {
-                    id: a.id,
-                    candidate: a.name,
-                    party: a.party,
-                    seat: a.seat,
-                    seatDisplay: config.displayName,
-                    seatType: config.type,
-                    votes: a.voteCount,
-                    county: a.county || 'N/A',
-                    constituency: a.constituency || 'N/A',
-                    ward: a.ward || 'N/A',
-                    hierarchy: config.hierarchy
-                };
-
-                // Create unique key based on geographic level
-                let key;
-                switch (config.type) {
-                    case 'national':
-                        key = 'national';
-                        break;
-                    case 'county':
-                        key = `${a.seat}|${a.county}`;
-                        break;
-                    case 'constituency':
-                        key = `${a.seat}|${a.county}|${a.constituency}`;
-                        break;
-                    case 'ward':
-                        key = `${a.seat}|${a.county}|${a.constituency}|${a.ward}`;
-                        break;
-                    default:
-                        key = 'other';
-                }
-
-                // Initialize if not exists
-                if (!organizedResults[config.type].find(r => r.key === key)) {
-                    organizedResults[config.type].push({
-                        key,
-                        seat: a.seat,
-                        seatDisplay: config.displayName,
-                        seatType: config.type,
-                        county: a.county,
-                        constituency: a.constituency,
-                        ward: a.ward,
-                        candidates: []
-                    });
-                }
-
-                // Add candidate to the appropriate group
-                const group = organizedResults[config.type].find(r => r.key === key);
-                if (group) {
-                    group.candidates.push(resultItem);
-                }
+            // Calculate vote counts
+            const voteCounts = {};
+            votesData?.forEach(vote => {
+                voteCounts[vote.aspirant_id] = (voteCounts[vote.aspirant_id] || 0) + 1;
             });
 
-            // Create new PDF document
+            // Add vote counts to aspirants
+            const processedData = aspirantsData.map(aspirant => ({
+                ...aspirant,
+                votes: voteCounts[aspirant.id] || 0
+            }));
+
+            // Create PDF with landscape orientation
             const doc = new jsPDF({
-                orientation: 'portrait',
+                orientation: 'landscape',
                 unit: 'mm',
                 format: 'a4'
             });
 
-            // Set document properties
-            doc.setProperties({
-                title: 'Election Results Report',
-                subject: 'Official Election Results',
-                author: 'Independent Electoral Commission',
-                keywords: 'election, results, voting, kenya'
-            });
+            let pageNumber = 1;
+            let yOffset = 20;
 
-            // Add official header
-            doc.setFillColor(0, 128, 0); // Green
-            doc.rect(0, 0, doc.internal.pageSize.width, 12, 'F');
-            doc.setFillColor(0, 0, 0); // Black
-            doc.rect(0, 12, doc.internal.pageSize.width, 2, 'F');
-            doc.setFillColor(255, 0, 0); // Red
-            doc.rect(0, 14, doc.internal.pageSize.width, 2, 'F');
-
-            // Add main header
-            doc.setFontSize(22);
-            doc.setTextColor(31, 41, 55);
-            doc.setFont('helvetica', 'bold');
-            doc.text('INDEPENDENT ELECTORAL COMMISSION', doc.internal.pageSize.width / 2, 32, { align: 'center' });
-
-            doc.setFontSize(18);
-            doc.setTextColor(0, 128, 0);
-            doc.text('OFFICIAL ELECTION RESULTS', doc.internal.pageSize.width / 2, 42, { align: 'center' });
-
-            doc.setFontSize(12);
-            doc.setTextColor(75, 85, 99);
-            doc.text('Kenya General Election', doc.internal.pageSize.width / 2, 50, { align: 'center' });
-
-            // Generation info box
-            doc.setFillColor(249, 250, 251);
-            doc.roundedRect(20, 60, doc.internal.pageSize.width - 40, 20, 2, 2, 'F');
-
-            doc.setFontSize(10);
-            doc.setTextColor(31, 41, 55);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Report Generated:', 25, 72);
-            doc.setFont('helvetica', 'normal');
-            doc.text(new Date().toLocaleString('en-KE', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            }), 55, 72);
-
-            // Calculate comprehensive statistics
-            const totalOverallVotes = processedData.reduce((sum, a) => sum + a.voteCount, 0);
-            const totalCandidates = processedData.length;
-
-            // Calculate geographic coverage
-            const counties = new Set(processedData.map(a => a.county).filter(c => c && c !== 'N/A')).size;
-            const constituencies = new Set(processedData.map(a => a.constituency).filter(c => c && c !== 'N/A')).size;
-            const wards = new Set(processedData.map(a => a.ward).filter(w => w && w !== 'N/A')).size;
-
-            // Count results by seat type
-            const nationalSeatsCount = organizedResults.national.length;
-            const countySeatsCount = organizedResults.county.length;
-            const constituencySeatsCount = organizedResults.constituency.length;
-            const wardSeatsCount = organizedResults.ward.length;
-
-            // Stats cards
-            const cardWidth = (doc.internal.pageSize.width - 120) / 6;
-
-            const stats = [
-                { label: 'TOTAL VOTES', value: totalOverallVotes.toLocaleString(), color: [239, 246, 255], textColor: [29, 78, 216] },
-                { label: 'COUNTIES', value: counties.toString(), color: [236, 253, 245], textColor: [4, 120, 87] },
-                { label: 'CONSTITUENCIES', value: constituencies.toString(), color: [254, 242, 242], textColor: [185, 28, 28] },
-                { label: 'WARDS', value: wards.toString(), color: [255, 247, 237], textColor: [194, 65, 12] },
-                { label: 'CANDIDATES', value: totalCandidates.toString(), color: [243, 232, 255], textColor: [109, 40, 217] },
-                { label: 'SEATS', value: (nationalSeatsCount + countySeatsCount + constituencySeatsCount + wardSeatsCount).toString(), color: [254, 249, 195], textColor: [146, 64, 14] }
-            ];
-
-            stats.forEach((stat, index) => {
-                const x = 15 + (index * (cardWidth + 5));
-                doc.setFillColor(stat.color[0], stat.color[1], stat.color[2]);
-                doc.roundedRect(x, 90, cardWidth, 25, 2, 2, 'F');
-
-                doc.setFontSize(7);
-                doc.setTextColor(stat.textColor[0], stat.textColor[1], stat.textColor[2]);
-                doc.setFont('helvetica', 'bold');
-                doc.text(stat.label, x + (cardWidth / 2), 100, { align: 'center' });
-
-                doc.setFontSize(10);
-                doc.setTextColor(31, 41, 55);
-                doc.text(stat.value, x + (cardWidth / 2), 112, { align: 'center' });
-            });
-
-            // SUMMARY SECTION
-            doc.setFontSize(16);
-            doc.setTextColor(0, 128, 0);
-            doc.setFont('helvetica', 'bold');
-            doc.text('SUMMARY OF RESULTS', doc.internal.pageSize.width / 2, 135, { align: 'center' });
-
-            // Prepare summary data for ALL seats
-            const allSummaries = [];
-
-            // National seats (President)
-            organizedResults.national.forEach(group => {
-                group.candidates.sort((a, b) => b.votes - a.votes);
-                const totalVotes = group.candidates.reduce((sum, c) => sum + c.votes, 0);
-                const winner = group.candidates[0];
-
-                allSummaries.push({
-                    type: 'NATIONAL',
-                    seat: group.seatDisplay,
-                    region: 'KENYA',
-                    county: '-',
-                    constituency: '-',
-                    ward: '-',
-                    totalVotes,
-                    candidates: group.candidates.length,
-                    winnerName: winner.candidate,
-                    winnerParty: winner.party,
-                    winnerVotes: winner.votes,
-                    winnerPercentage: totalVotes ? ((winner.votes / totalVotes) * 100).toFixed(1) : 0
-                });
-            });
-
-            // County seats (Governor, Senator, Woman Rep)
-            organizedResults.county.forEach(group => {
-                group.candidates.sort((a, b) => b.votes - a.votes);
-                const totalVotes = group.candidates.reduce((sum, c) => sum + c.votes, 0);
-                const winner = group.candidates[0];
-
-                allSummaries.push({
-                    type: 'COUNTY',
-                    seat: group.seatDisplay,
-                    region: group.county,
-                    county: group.county,
-                    constituency: '-',
-                    ward: '-',
-                    totalVotes,
-                    candidates: group.candidates.length,
-                    winnerName: winner.candidate,
-                    winnerParty: winner.party,
-                    winnerVotes: winner.votes,
-                    winnerPercentage: totalVotes ? ((winner.votes / totalVotes) * 100).toFixed(1) : 0
-                });
-            });
-
-            // Constituency seats (MP)
-            organizedResults.constituency.forEach(group => {
-                group.candidates.sort((a, b) => b.votes - a.votes);
-                const totalVotes = group.candidates.reduce((sum, c) => sum + c.votes, 0);
-                const winner = group.candidates[0];
-
-                allSummaries.push({
-                    type: 'CONSTITUENCY',
-                    seat: group.seatDisplay,
-                    region: group.constituency,
-                    county: group.county,
-                    constituency: group.constituency,
-                    ward: '-',
-                    totalVotes,
-                    candidates: group.candidates.length,
-                    winnerName: winner.candidate,
-                    winnerParty: winner.party,
-                    winnerVotes: winner.votes,
-                    winnerPercentage: totalVotes ? ((winner.votes / totalVotes) * 100).toFixed(1) : 0
-                });
-            });
-
-            // Ward seats (MCA)
-            organizedResults.ward.forEach(group => {
-                group.candidates.sort((a, b) => b.votes - a.votes);
-                const totalVotes = group.candidates.reduce((sum, c) => sum + c.votes, 0);
-                const winner = group.candidates[0];
-
-                allSummaries.push({
-                    type: 'WARD',
-                    seat: group.seatDisplay,
-                    region: group.ward,
-                    county: group.county,
-                    constituency: group.constituency,
-                    ward: group.ward,
-                    totalVotes,
-                    candidates: group.candidates.length,
-                    winnerName: winner.candidate,
-                    winnerParty: winner.party,
-                    winnerVotes: winner.votes,
-                    winnerPercentage: totalVotes ? ((winner.votes / totalVotes) * 100).toFixed(1) : 0
-                });
-            });
-
-            // Sort summaries by type and region
-            const typeOrder = { NATIONAL: 1, COUNTY: 2, CONSTITUENCY: 3, WARD: 4 };
-            allSummaries.sort((a, b) => {
-                if (a.type !== b.type) return typeOrder[a.type] - typeOrder[b.type];
-                return a.region.localeCompare(b.region);
-            });
-
-            // Create summary table with ALL geographic columns
-            autoTable(doc, {
-                startY: 145,
-                head: [['Type', 'Position', 'County', 'Constituency', 'Ward', 'Winner', 'Party', 'Votes', '%']],
-                body: allSummaries.map(s => [
-                    s.type,
-                    s.seat,
-                    s.county,
-                    s.constituency,
-                    s.ward,
-                    s.winnerName.length > 18 ? s.winnerName.substring(0, 16) + '...' : s.winnerName,
-                    s.winnerParty,
-                    s.winnerVotes.toLocaleString(),
-                    s.winnerPercentage + '%'
-                ]),
-                margin: { left: 10, right: 10 },
-                styles: {
-                    fontSize: 7,
-                    cellPadding: 2,
-                    lineColor: [229, 231, 235],
-                    lineWidth: 0.5,
-                    textColor: [31, 41, 55]
-                },
-                headStyles: {
-                    fillColor: [0, 128, 0],
-                    textColor: [255, 255, 255],
-                    fontSize: 8,
-                    fontStyle: 'bold',
-                    halign: 'center',
-                    lineWidth: 0
-                },
-                columnStyles: {
-                    0: { cellWidth: 18, fontStyle: 'bold' },
-                    1: { cellWidth: 25 },
-                    2: { cellWidth: 18 },
-                    3: { cellWidth: 20 },
-                    4: { cellWidth: 18 },
-                    5: { cellWidth: 32 },
-                    6: { cellWidth: 15 },
-                    7: { halign: 'right', cellWidth: 12 },
-                    8: { halign: 'right', cellWidth: 10 }
-                },
-                didDrawPage: (data) => {
-                    // Add section headers
-                    let lastType = '';
-                    data.table.body.forEach((row, index) => {
-                        const rowData = allSummaries[index];
-                        if (rowData && rowData.type !== lastType) {
-                            lastType = rowData.type;
-                            // Visual separator could be added here
-                        }
-                    });
-                }
-            });
-
-            // Add footer for first page
-            doc.setDrawColor(0, 128, 0);
-            doc.line(20, doc.internal.pageSize.height - 20, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 20);
-
-            doc.setFontSize(8);
-            doc.setTextColor(107, 114, 128);
-            doc.text('Independent Electoral Commission - Official Results', 20, doc.internal.pageSize.height - 10);
-            doc.text(`Page 1 of ?`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10, { align: 'right' });
-
-            // DETAILED RESULTS PAGES
-            let pageNumber = 2;
-
-            // Helper function to add detailed page
-            const addDetailedPage = (title, subtitle, candidates, hierarchy) => {
-                doc.addPage();
-
-                // Page header
-                doc.setFillColor(0, 128, 0);
+            // Helper function to add header to each page
+            const addPageHeader = () => {
+                doc.setFillColor(0, 128, 0); // Kenya green
                 doc.rect(0, 0, doc.internal.pageSize.width, 10, 'F');
 
-                const totalVotes = candidates.reduce((sum, c) => sum + c.votes, 0);
-                const sortedCandidates = [...candidates]
-                    .map(c => ({
-                        ...c,
-                        percentage: totalVotes ? ((c.votes / totalVotes) * 100) : 0
-                    }))
-                    .sort((a, b) => b.votes - a.votes);
-
-                // Title
-                doc.setFontSize(16);
-                doc.setTextColor(0, 128, 0);
+                doc.setFontSize(10);
+                doc.setTextColor(255, 255, 255); // White text
                 doc.setFont('helvetica', 'bold');
-                doc.text(title, doc.internal.pageSize.width / 2, 22, { align: 'center' });
+                doc.text('INDEPENDENT ELECTORAL COMMISSION - OFFICIAL RESULTS', doc.internal.pageSize.width / 2, 7, { align: 'center' });
 
-                doc.setFontSize(12);
-                doc.setTextColor(31, 41, 55);
-                doc.text(subtitle, doc.internal.pageSize.width / 2, 32, { align: 'center' });
+                doc.setFontSize(8);
+                doc.text(`Page ${pageNumber}`, doc.internal.pageSize.width - 20, 7, { align: 'right' });
 
-                // Statistics box
-                doc.setFillColor(239, 246, 255);
-                doc.roundedRect(20, 38, doc.internal.pageSize.width - 40, 20, 2, 2, 'F');
+                yOffset = 20;
+            };
 
-                doc.setFontSize(9);
-                doc.setTextColor(31, 41, 55);
-                doc.setFont('helvetica', 'normal');
-                doc.text(`Total Votes: ${totalVotes.toLocaleString()}`, 30, 50);
-                doc.text(`Candidates: ${candidates.length}`, 100, 50);
-                doc.text(`Winner: ${sortedCandidates[0].candidate} (${sortedCandidates[0].party})`, 150, 50);
+            // Helper function to format winner info
+            const formatWinnerInfo = (candidate, totalVotes) => {
+                const percentage = totalVotes > 0 ? ((candidate.votes / totalVotes) * 100).toFixed(1) : 0;
+                return `${candidate.name} (${candidate.party}) - ${candidate.votes.toLocaleString()} votes (${percentage}%)`;
+            };
 
-                // Build columns based on hierarchy
-                const columns = [
-                    { header: 'Rank', dataKey: 'rank', width: 12 }
-                ];
+            // Add first page header
+            addPageHeader();
 
-                // Add geographic columns based on what's available
-                if (hierarchy.includes('county')) {
-                    columns.push({ header: 'County', dataKey: 'county', width: 25 });
-                }
-                if (hierarchy.includes('constituency')) {
-                    columns.push({ header: 'Constituency', dataKey: 'constituency', width: 30 });
-                }
-                if (hierarchy.includes('ward')) {
-                    columns.push({ header: 'Ward', dataKey: 'ward', width: 25 });
-                }
+            // ==================== PRESIDENT ====================
+            const presidentData = processedData.filter(a =>
+                a.seat?.toLowerCase().includes('president')
+            ).sort((a, b) => b.votes - a.votes);
 
-                columns.push(
-                    { header: 'Candidate', dataKey: 'candidate', width: 45 },
-                    { header: 'Party', dataKey: 'party', width: 20 },
-                    { header: 'Votes', dataKey: 'votes', width: 18, align: 'right' },
-                    { header: 'Share', dataKey: 'share', width: 15, align: 'right' }
-                );
+            if (presidentData.length > 0) {
+                doc.setFontSize(18);
+                doc.setTextColor(0, 128, 0); // Kenya green
+                doc.setFont('helvetica', 'bold');
+                doc.text('PRESIDENT - NATIONAL RESULTS', 20, yOffset);
+                yOffset += 10;
 
-                // Prepare table body
-                const body = sortedCandidates.map((c, idx) => {
-                    const row = [idx + 1];
+                const totalVotes = presidentData.reduce((sum, a) => sum + a.votes, 0);
+                const winner = presidentData[0];
 
-                    if (hierarchy.includes('county')) row.push(c.county);
-                    if (hierarchy.includes('constituency')) row.push(c.constituency);
-                    if (hierarchy.includes('ward')) row.push(c.ward);
+                // Winner highlight box
+                doc.setFillColor(255, 247, 237); // Light orange
+                doc.roundedRect(20, yOffset - 2, doc.internal.pageSize.width - 40, 20, 3, 3, 'F');
 
-                    row.push(
-                        c.candidate,
-                        c.party,
-                        c.votes.toLocaleString(),
-                        c.percentage.toFixed(2) + '%'
-                    );
+                doc.setFontSize(11);
+                doc.setTextColor(0, 0, 0); // Black text
+                doc.setFont('helvetica', 'bold');
+                doc.text('WINNER:', 25, yOffset + 5);
 
-                    return row;
-                });
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(0, 128, 0); // Kenya green
+                doc.text(formatWinnerInfo(winner, totalVotes), 50, yOffset + 5);
 
-                // Create table
+                yOffset += 25;
+
+                // Create president table with all competitors
                 autoTable(doc, {
-                    startY: 65,
-                    head: [columns.map(col => col.header)],
-                    body: body,
-                    margin: { left: 15, right: 15 },
-                    styles: {
-                        fontSize: 8,
-                        cellPadding: 3,
-                        lineColor: [229, 231, 235],
-                        lineWidth: 0.5
-                    },
-                    headStyles: {
-                        fillColor: [0, 128, 0],
-                        textColor: [255, 255, 255],
-                        fontSize: 9,
+                    startY: yOffset,
+                    head: [['Rank', 'Candidate', 'Party', 'County', 'Votes', 'Share']],
+                    body: presidentData.map((c, idx) => [
+                        idx + 1,
+                        c.name,
+                        c.party,
+                        c.county || 'N/A',
+                        c.votes.toLocaleString(),
+                        totalVotes > 0 ? ((c.votes / totalVotes) * 100).toFixed(2) + '%' : '0%'
+                    ]),
+                    margin: { left: 20, right: 20 },
+                    styles: { fontSize: 10, cellPadding: 4 },
+                    headStyles: { 
+                        fillColor: [0, 128, 0], // Kenya green
+                        textColor: [0, 0, 0], // Black text
                         fontStyle: 'bold',
+                        fontSize: 11,
                         halign: 'center'
                     },
-                    columnStyles: columns.reduce((styles, col, index) => {
-                        styles[index] = {
-                            cellWidth: col.width,
-                            halign: col.align || 'left'
-                        };
-                        return styles;
-                    }, {}),
+                    alternateRowStyles: { fillColor: [245, 245, 245] }, // Light gray
                     didParseCell: (data) => {
-                        if (data.section === 'body' && data.row.index === 0) {
-                            data.cell.styles.fillColor = [255, 247, 237];
+                        // Highlight winner row
+                        if (data.row.index === 0) {
+                            data.cell.styles.fillColor = [255, 247, 237]; // Light orange
                             data.cell.styles.fontStyle = 'bold';
-                        }
-                        if (data.section === 'body' && data.row.index % 2 === 1) {
-                            data.cell.styles.fillColor = [249, 250, 251];
                         }
                     }
                 });
 
-                // Election statistics
-                const finalY = doc.lastAutoTable.finalY + 10;
+                yOffset = doc.lastAutoTable.finalY + 15;
+            }
 
-                doc.setFontSize(8);
-                doc.setTextColor(31, 41, 55);
-                doc.setFont('helvetica', 'bold');
-                doc.text('Election Statistics:', 20, finalY);
+            // ==================== GOVERNORS, SENATORS, WOMEN REPS BY COUNTY ====================
+            const governorData = processedData.filter(a => a.seat?.toLowerCase().includes('governor'));
+            const senatorData = processedData.filter(a => a.seat?.toLowerCase().includes('senator'));
+            const womanRepData = processedData.filter(a =>
+                a.seat?.toLowerCase().includes('woman') || a.seat?.toLowerCase().includes('women')
+            );
 
-                doc.setFont('helvetica', 'normal');
-                const margin = sortedCandidates[0].votes - (sortedCandidates[1]?.votes || 0);
-                doc.text(`• Winning Margin: ${margin.toLocaleString()} votes`, 25, finalY + 5);
-                doc.text(`• Winner's Share: ${sortedCandidates[0].percentage.toFixed(2)}%`, 25, finalY + 10);
+            if (governorData.length > 0 || senatorData.length > 0 || womanRepData.length > 0) {
+                // Get all counties
+                const allCounties = new Set([
+                    ...governorData.map(g => g.county),
+                    ...senatorData.map(s => s.county),
+                    ...womanRepData.map(w => w.county)
+                ].filter(c => c));
 
-                if (sortedCandidates.length > 1) {
-                    doc.text(`• Runner-up: ${sortedCandidates[1].candidate} (${sortedCandidates[1].party})`, 25, finalY + 15);
-                }
+                [...allCounties].sort().forEach(county => {
+                    // Check if we need a new page
+                    if (yOffset > 180) {
+                        doc.addPage();
+                        pageNumber++;
+                        addPageHeader();
+                    }
 
-                // Page footer
-                doc.setDrawColor(0, 128, 0);
-                doc.line(20, doc.internal.pageSize.height - 20, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 20);
+                    doc.setFontSize(16);
+                    doc.setTextColor(0, 128, 0); // Kenya green
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`${county} COUNTY`, 20, yOffset);
+                    yOffset += 10;
 
-                doc.setFontSize(8);
-                doc.setTextColor(107, 114, 128);
-                doc.text('Independent Electoral Commission - Official Results', 20, doc.internal.pageSize.height - 10);
-                doc.text(`Page ${pageNumber} of ?`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10, { align: 'right' });
+                    // Governor
+                    const countyGov = governorData.filter(g => g.county === county).sort((a, b) => b.votes - a.votes);
+                    if (countyGov.length > 0) {
+                        const total = countyGov.reduce((sum, a) => sum + a.votes, 0);
+                        const winner = countyGov[0];
 
-                pageNumber++;
-            };
+                        doc.setFontSize(14);
+                        doc.setTextColor(0, 0, 0); // Black text
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('GOVERNOR', 25, yOffset);
+                        yOffset += 8;
 
-            // Generate detailed pages for ALL seats
+                        // Winner highlight
+                        doc.setFillColor(255, 247, 237); // Light orange
+                        doc.roundedRect(25, yOffset - 2, doc.internal.pageSize.width - 50, 12, 2, 2, 'F');
+                        doc.setFontSize(9);
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('WINNER:', 30, yOffset + 4);
+                        doc.setTextColor(0, 128, 0); // Kenya green
+                        doc.text(formatWinnerInfo(winner, total), 55, yOffset + 4);
+                        yOffset += 15;
 
-            // 1. National (President)
-            organizedResults.national.forEach(group => {
-                addDetailedPage(
-                    `PRESIDENT OF THE REPUBLIC OF KENYA`,
-                    'NATIONAL RESULTS',
-                    group.candidates,
-                    ['county'] // Show county of origin for president candidates
-                );
-            });
+                        // All competitors table
+                        autoTable(doc, {
+                            startY: yOffset,
+                            head: [['Rank', 'Candidate', 'Party', 'Votes', 'Share']],
+                            body: countyGov.map((c, idx) => [
+                                idx + 1,
+                                c.name,
+                                c.party,
+                                c.votes.toLocaleString(),
+                                total > 0 ? ((c.votes / total) * 100).toFixed(1) + '%' : '0%'
+                            ]),
+                            margin: { left: 30, right: 20 },
+                            styles: { fontSize: 9, cellPadding: 3 },
+                            headStyles: { 
+                                fillColor: [70, 130, 180], // Steel blue - professional and legible
+                                textColor: [0, 0, 0], // Black text
+                                fontStyle: 'bold',
+                                fontSize: 10,
+                                halign: 'center'
+                            },
+                            alternateRowStyles: { fillColor: [245, 245, 245] }, // Light gray
+                            didParseCell: (data) => {
+                                if (data.row.index === 0) {
+                                    data.cell.styles.fillColor = [255, 247, 237]; // Light orange
+                                    data.cell.styles.fontStyle = 'bold';
+                                }
+                            }
+                        });
+                        yOffset = doc.lastAutoTable.finalY + 10;
+                    }
 
-            // 2. County Seats (Governor, Senator, Woman Rep)
-            organizedResults.county.forEach(group => {
-                addDetailedPage(
-                    group.seatDisplay,
-                    `${group.county} COUNTY`,
-                    group.candidates,
-                    ['constituency'] // Show constituency breakdown for county seats
-                );
-            });
+                    // Senator
+                    const countySen = senatorData.filter(s => s.county === county).sort((a, b) => b.votes - a.votes);
+                    if (countySen.length > 0) {
+                        const total = countySen.reduce((sum, a) => sum + a.votes, 0);
+                        const winner = countySen[0];
 
-            // 3. Constituency Seats (MP)
-            organizedResults.constituency.forEach(group => {
-                addDetailedPage(
-                    `MEMBER OF PARLIAMENT`,
-                    `${group.constituency} CONSTITUENCY, ${group.county} COUNTY`,
-                    group.candidates,
-                    ['ward'] // Show ward breakdown for MP results
-                );
-            });
+                        doc.setFontSize(14);
+                        doc.setTextColor(0, 0, 0); // Black text
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('SENATOR', 25, yOffset);
+                        yOffset += 8;
 
-            // 4. Ward Seats (MCA)
-            organizedResults.ward.forEach(group => {
-                addDetailedPage(
-                    `MEMBER OF COUNTY ASSEMBLY`,
-                    `${group.ward} WARD, ${group.constituency} CONSTITUENCY, ${group.county} COUNTY`,
-                    group.candidates,
-                    [] // No further breakdown needed
-                );
-            });
+                        // Winner highlight
+                        doc.setFillColor(255, 247, 237); // Light orange
+                        doc.roundedRect(25, yOffset - 2, doc.internal.pageSize.width - 50, 12, 2, 2, 'F');
+                        doc.setFontSize(9);
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('WINNER:', 30, yOffset + 4);
+                        doc.setTextColor(0, 128, 0); // Kenya green
+                        doc.text(formatWinnerInfo(winner, total), 55, yOffset + 4);
+                        yOffset += 15;
+
+                        autoTable(doc, {
+                            startY: yOffset,
+                            head: [['Rank', 'Candidate', 'Party', 'Votes', 'Share']],
+                            body: countySen.map((c, idx) => [
+                                idx + 1,
+                                c.name,
+                                c.party,
+                                c.votes.toLocaleString(),
+                                total > 0 ? ((c.votes / total) * 100).toFixed(1) + '%' : '0%'
+                            ]),
+                            margin: { left: 30, right: 20 },
+                            styles: { fontSize: 9, cellPadding: 3 },
+                            headStyles: { 
+                                fillColor: [70, 130, 180], // Steel blue
+                                textColor: [0, 0, 0], // White text
+                                fontStyle: 'bold',
+                                fontSize: 10,
+                                halign: 'center'
+                            },
+                            alternateRowStyles: { fillColor: [245, 245, 245] }, // Light gray
+                            didParseCell: (data) => {
+                                if (data.row.index === 0) {
+                                    data.cell.styles.fillColor = [255, 247, 237]; // Light orange
+                                    data.cell.styles.fontStyle = 'bold';
+                                }
+                            }
+                        });
+                        yOffset = doc.lastAutoTable.finalY + 10;
+                    }
+
+                    // Woman Representative
+                    const countyWoman = womanRepData.filter(w => w.county === county).sort((a, b) => b.votes - a.votes);
+                    if (countyWoman.length > 0) {
+                        const total = countyWoman.reduce((sum, a) => sum + a.votes, 0);
+                        const winner = countyWoman[0];
+
+                        doc.setFontSize(14);
+                        doc.setTextColor(0, 0, 0); // Black text
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('WOMAN REPRESENTATIVE', 25, yOffset);
+                        yOffset += 8;
+
+                        // Winner highlight
+                        doc.setFillColor(255, 247, 237); // Light orange
+                        doc.roundedRect(25, yOffset - 2, doc.internal.pageSize.width - 50, 12, 2, 2, 'F');
+                        doc.setFontSize(9);
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('WINNER:', 30, yOffset + 4);
+                        doc.setTextColor(0, 128, 0); // Kenya green
+                        doc.text(formatWinnerInfo(winner, total), 55, yOffset + 4);
+                        yOffset += 15;
+
+                        autoTable(doc, {
+                            startY: yOffset,
+                            head: [['Rank', 'Candidate', 'Party', 'Votes', 'Share']],
+                            body: countyWoman.map((c, idx) => [
+                                idx + 1,
+                                c.name,
+                                c.party,
+                                c.votes.toLocaleString(),
+                                total > 0 ? ((c.votes / total) * 100).toFixed(1) + '%' : '0%'
+                            ]),
+                            margin: { left: 30, right: 20 },
+                            styles: { fontSize: 9, cellPadding: 3 },
+                            headStyles: { 
+                                fillColor: [70, 130, 180], // Steel blue
+                                textColor: [0, 0, 0], // White text
+                                fontStyle: 'bold',
+                                fontSize: 10,
+                                halign: 'center'
+                            },
+                            alternateRowStyles: { fillColor: [245, 245, 245] }, // Light gray
+                            didParseCell: (data) => {
+                                if (data.row.index === 0) {
+                                    data.cell.styles.fillColor = [255, 247, 237]; // Light orange
+                                    data.cell.styles.fontStyle = 'bold';
+                                }
+                            }
+                        });
+                        yOffset = doc.lastAutoTable.finalY + 15;
+                    }
+                });
+            }
+
+            // ==================== MEMBERS OF PARLIAMENT BY CONSTITUENCY ====================
+            const mpData = processedData.filter(a =>
+                a.seat?.toLowerCase().includes('parliament') || a.seat?.toLowerCase() === 'mp'
+            );
+
+            if (mpData.length > 0) {
+                // Group by constituency
+                const mpByConstituency = {};
+                mpData.forEach(mp => {
+                    if (mp.county && mp.constituency) {
+                        const key = `${mp.county}|${mp.constituency}`;
+                        if (!mpByConstituency[key]) mpByConstituency[key] = [];
+                        mpByConstituency[key].push(mp);
+                    }
+                });
+
+                Object.keys(mpByConstituency).sort().forEach(key => {
+                    // Check if we need a new page
+                    if (yOffset > 180) {
+                        doc.addPage();
+                        pageNumber++;
+                        addPageHeader();
+                    }
+
+                    const [county, constituency] = key.split('|');
+                    const candidates = mpByConstituency[key].sort((a, b) => b.votes - a.votes);
+                    const totalVotes = candidates.reduce((sum, a) => sum + a.votes, 0);
+                    const winner = candidates[0];
+
+                    doc.setFontSize(16);
+                    doc.setTextColor(0, 128, 0); // Kenya green
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`MEMBER OF PARLIAMENT - ${constituency} CONSTITUENCY`, 20, yOffset);
+                    yOffset += 6;
+
+                    doc.setFontSize(10);
+                    doc.setTextColor(100, 100, 100); // Gray
+                    doc.text(`${county} COUNTY`, 20, yOffset);
+                    yOffset += 10;
+
+                    // Winner highlight
+                    doc.setFillColor(255, 247, 237); // Light orange
+                    doc.roundedRect(20, yOffset - 2, doc.internal.pageSize.width - 40, 15, 3, 3, 'F');
+
+                    doc.setFontSize(10);
+                    doc.setTextColor(0, 0, 0); // Black text
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('WINNER:', 25, yOffset + 5);
+
+                    doc.setTextColor(0, 128, 0); // Kenya green
+                    doc.text(formatWinnerInfo(winner, totalVotes), 50, yOffset + 5);
+
+                    yOffset += 20;
+
+                    // All competitors table
+                    autoTable(doc, {
+                        startY: yOffset,
+                        head: [['Rank', 'Candidate', 'Party', 'Votes', 'Share']],
+                        body: candidates.map((c, idx) => [
+                            idx + 1,
+                            c.name,
+                            c.party,
+                            c.votes.toLocaleString(),
+                            totalVotes > 0 ? ((c.votes / totalVotes) * 100).toFixed(1) + '%' : '0%'
+                        ]),
+                        margin: { left: 20, right: 20 },
+                        styles: { fontSize: 9, cellPadding: 4 },
+                        headStyles: { 
+                            fillColor: [0, 128, 128], // Teal - distinct from county seats
+                            textColor: [0, 0, 0], // Black text
+                            fontStyle: 'bold',
+                            fontSize: 10,
+                            halign: 'center'
+                        },
+                        alternateRowStyles: { fillColor: [245, 245, 245] }, // Light gray
+                        didParseCell: (data) => {
+                            if (data.row.index === 0) {
+                                data.cell.styles.fillColor = [255, 247, 237]; // Light orange
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+                        }
+                    });
+
+                    yOffset = doc.lastAutoTable.finalY + 15;
+                });
+            }
+
+           
+            const mcaData = processedData.filter(a =>
+                a.seat?.toLowerCase().includes('county assembly') || a.seat?.toLowerCase() === 'mca'
+            );
+
+            if (mcaData.length > 0) {
+                // Group by ward
+                const mcaByWard = {};
+                mcaData.forEach(mca => {
+                    if (mca.county && mca.constituency && mca.ward) {
+                        const key = `${mca.county}|${mca.constituency}|${mca.ward}`;
+                        if (!mcaByWard[key]) mcaByWard[key] = [];
+                        mcaByWard[key].push(mca);
+                    }
+                });
+
+                Object.keys(mcaByWard).sort().forEach(key => {
+                    // Check if we need a new page
+                    if (yOffset > 180) {
+                        doc.addPage();
+                        pageNumber++;
+                        addPageHeader();
+                    }
+
+                    const [county, constituency, ward] = key.split('|');
+                    const candidates = mcaByWard[key].sort((a, b) => b.votes - a.votes);
+                    const totalVotes = candidates.reduce((sum, a) => sum + a.votes, 0);
+                    const winner = candidates[0];
+
+                    doc.setFontSize(16);
+                    doc.setTextColor(0, 128, 0); // Kenya green
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`MEMBER OF COUNTY ASSEMBLY - ${ward} WARD`, 20, yOffset);
+                    yOffset += 6;
+
+                    doc.setFontSize(10);
+                    doc.setTextColor(100, 100, 100); // Gray
+                    doc.text(`${constituency} CONSTITUENCY, ${county} COUNTY`, 20, yOffset);
+                    yOffset += 10;
+
+                    // Winner highlight
+                    doc.setFillColor(255, 247, 237); // Light orange
+                    doc.roundedRect(20, yOffset - 2, doc.internal.pageSize.width - 40, 15, 3, 3, 'F');
+
+                    doc.setFontSize(10);
+                    doc.setTextColor(0, 0, 0); // Black text
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('WINNER:', 25, yOffset + 5);
+
+                    doc.setTextColor(0, 128, 0); // Kenya green
+                    doc.text(formatWinnerInfo(winner, totalVotes), 50, yOffset + 5);
+
+                    yOffset += 20;
+
+                    // All competitors table
+                    autoTable(doc, {
+                        startY: yOffset,
+                        head: [['Rank', 'Candidate', 'Party', 'Votes', 'Share']],
+                        body: candidates.map((c, idx) => [
+                            idx + 1,
+                            c.name,
+                            c.party,
+                            c.votes.toLocaleString(),
+                            totalVotes > 0 ? ((c.votes / totalVotes) * 100).toFixed(1) + '%' : '0%'
+                        ]),
+                        margin: { left: 20, right: 20 },
+                        styles: { fontSize: 9, cellPadding: 4 },
+                        headStyles: { 
+                            fillColor: [128, 0, 128], // Purple - distinct from other seats
+                              // Black text
+                            textColor: [0, 0, 0], // White text
+                            fontStyle: 'bold',
+                            fontSize: 10,
+                            halign: 'center'
+                        },
+                        alternateRowStyles: { fillColor: [245, 245, 245] }, // Light gray
+                        didParseCell: (data) => {
+                            if (data.row.index === 0) {
+                                data.cell.styles.fillColor = [255, 247, 237]; // Light orange
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+                        }
+                    });
+
+                    yOffset = doc.lastAutoTable.finalY + 15;
+                });
+            }
 
             // Save the PDF
-            doc.save(`Kenya_Election_Results_${new Date().toISOString().split('T')[0]}.pdf`);
+            doc.save(`Election_Results_${new Date().toISOString().split('T')[0]}.pdf`);
+            setLoading(false);
 
         } catch (err) {
-            console.error("Unexpected error:", err);
+            console.error("Error:", err);
             alert('Failed to generate election results. Please try again.');
+            setLoading(false);
         }
     };
-
     // Helper function to add detailed results page
-    
+
     const handleAddAspirant = async (e) => {
         e.preventDefault();
         setError(null);
