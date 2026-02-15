@@ -11,6 +11,7 @@ import RequireAdminLogin from './States/authSession';
 import TestBackend from './Pages/TestBanckend';
 import BanScreen from './Components/isBanned';
 import { AlertTriangle, Shield, Lock, AlertCircle, Fingerprint } from 'lucide-react';
+import emailjs from '@emailjs/browser';
 
 const API_URL = import.meta.env.REACT_APP_API_URL || 'https://votifybackend-h0yt.onrender.com/api';
 
@@ -44,6 +45,12 @@ function App() {
   });
   const [banCheckComplete, setBanCheckComplete] = useState(false);
 
+
+  useEffect(() => {
+    // Initialize EmailJS once when the app loads
+    emailjs.init(import.meta.env.VITE_EMAILJS_PUBLIC_KEY);
+    console.log(' EmailJS initialized');
+  }, []);
 
   const generateDeviceFingerprint = () => {
     try {
@@ -120,7 +127,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: bannedEmail,
-          ip: clientIP  
+          ip: clientIP
         }),
       });
 
@@ -424,8 +431,8 @@ function App() {
             onClick={resetRateLimit}
             disabled={rateLimitTimer > 0}
             className={`w-full py-4 px-6 rounded-2xl font-bold transition-all ${rateLimitTimer > 0
-                ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+              : 'bg-emerald-600 hover:bg-emerald-700 text-white'
               }`}
           >
             {rateLimitTimer > 0 ? 'System Locked' : 'Unlock System'}

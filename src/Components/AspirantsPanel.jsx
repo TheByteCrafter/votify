@@ -12,9 +12,10 @@ const AspirantPanel = ({
     onRefresh,
     loading: propLoading
 }) => {
+
+    // State Viarables and Contacts
     const [searchTerm, setSearchTerm] = useState('');
     const [filterSeat, setFilterSeat] = useState('all');
-
     const aspirants = propAspirants || [];
     const votes = propVotes || {};
     const registrations = propRegistrations || [];
@@ -23,6 +24,7 @@ const AspirantPanel = ({
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingAspirant, setEditingAspirant] = useState(null);
+
     const [formData, setFormData] = useState({
         name: '',
         party: '',
@@ -31,6 +33,7 @@ const AspirantPanel = ({
         constituency: '',
         ward: ''
     });
+
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
 
@@ -40,7 +43,8 @@ const AspirantPanel = ({
     const [loadingVoters, setLoadingVoters] = useState(false);
     const [voterSearchTerm, setVoterSearchTerm] = useState('');
 
-    // Calculate stats from props
+
+    // Calculate Statics 
     const stats = {
         totalVotes: Object.values(votes).reduce((sum, count) => sum + count, 0),
         totalVoters: profiles.length,
@@ -70,6 +74,7 @@ const AspirantPanel = ({
         'Kiambu', 'Nyandarua', 'Nyeri', 'Laikipia', 'Samburu',
         'Isiolo', 'Elgeyo Marakwet', 'Baringo', 'Narok', 'Kajiado'
     ];
+
 
     useEffect(() => {
         if (error || success) {
@@ -471,7 +476,7 @@ const AspirantPanel = ({
                 constituency: '',
                 ward: ''
             });
-            onRefresh(); // Use parent's refresh
+            onRefresh(); 
         } catch (error) {
             console.error('Error adding aspirant:', error);
             setError(`Failed to add candidate: ${error.message}`);

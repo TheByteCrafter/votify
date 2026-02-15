@@ -19,7 +19,7 @@ export default function AspirantRegistration() {
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState({ message: '', type: '' });
-
+  const [isProcessing, setIsProcessing] = useState(false);
     const [formData, setFormData] = useState({
         full_name: '',
         email: '',
@@ -150,7 +150,7 @@ export default function AspirantRegistration() {
                                 <ArrowLeft size={24} />
                             </button>
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white">
+                                <div className="h-10 w-10 rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white">
                                     <UserPlus size={24} />
                                 </div>
                                 <div>
@@ -256,7 +256,7 @@ export default function AspirantRegistration() {
                                 <button
                                     type="button"
                                     onClick={() => setStep(2)}
-                                    className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold hover:shadow-lg transition-all"
+                                    className="px-8 py-3 bg-linear-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold hover:shadow-lg transition-all"
                                 >
                                     Next: Political Information →
                                 </button>
@@ -335,7 +335,7 @@ export default function AspirantRegistration() {
                                 <button
                                     type="button"
                                     onClick={() => setStep(3)}
-                                    className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold hover:shadow-lg transition-all"
+                                    className="px-8 py-3 bg-linear-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold hover:shadow-lg transition-all"
                                 >
                                     Next: Document Upload →
                                 </button>
@@ -431,7 +431,7 @@ export default function AspirantRegistration() {
                                 <button
                                     type="submit"
                                     disabled={loading || !formData.id_document || !formData.party_certificate}
-                                    className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-8 py-3 bg-linear-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {loading ? (
                                         <span className="flex items-center gap-2">
@@ -447,7 +447,7 @@ export default function AspirantRegistration() {
                     )}
                 </form>
 
-                <div className="mt-8 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border border-blue-200">
+                <div className="mt-8 rounded-2xl bg-linear-to-r from-blue-50 to-indigo-50 p-6 border border-blue-200">
                     <div className="flex items-start gap-4">
                         <Shield className="h-6 w-6 text-blue-600 mt-1" />
                         <div>

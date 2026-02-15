@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase';
+import emailjs from '@emailjs/browser';
 import {
-
     Users,
     Vote,
     BarChart3,
@@ -30,7 +30,7 @@ import VoterManagement from '../Components/VoterManagement';
 import AdminSettings from '../Components/AdminSettings';
 import AspirantPanel from '../Components/AspirantsPanel';
 
-const API_URL = ' https://votifybackend-h0yt.onrender.com/api';
+const API_URL = 'https://votifybackend-h0yt.onrender.com/api';
 
 export default function AdminPortal() {
     const navigate = useNavigate();
@@ -42,7 +42,12 @@ export default function AdminPortal() {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [showAddModal, setShowAddModal] = useState(false);
     const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
-
+    const [selectedRegistration, setSelectedRegistration] = useState(null);
+    const [isProcessing, setIsProcessing] = useState(false);
+    
+    // Rejection dialog state
+    const [showRejectDialog, setShowRejectDialog] = useState(false);
+    const [selectedForRejection, setSelectedForRejection] = useState(null);
 
     const [stats, setStats] = useState({
         totalVotes: 0,
@@ -52,7 +57,6 @@ export default function AdminPortal() {
         approvedRegistrations: 0,
         rejectedRegistrations: 0
     });
-
 
     const [formData, setFormData] = useState({
         name: '',
@@ -72,6 +76,17 @@ export default function AdminPortal() {
         { id: 'settings', label: 'Settings', icon: Settings }
     ];
 
+    // Initialize EmailJS
+    useEffect(() => {
+        const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+        if (publicKey) {
+            emailjs.init(publicKey);
+            console.log('✅ EmailJS initialized');
+        } else {
+            console.error('❌ EmailJS public key not found');
+        }
+    }, []);
+
     useEffect(() => {
         fetchData();
         setupRealtimeSubscription();
@@ -80,14 +95,12 @@ export default function AdminPortal() {
     const fetchData = async () => {
         setLoading(true);
         try {
-
             const { data: aspirantsData } = await supabase
                 .from('aspirants')
                 .select('*')
                 .order('created_at', { ascending: false });
 
             if (aspirantsData) setAspirants(aspirantsData);
-
 
             const { data: registrationsData } = await supabase
                 .from('aspirant_registrations')
@@ -96,21 +109,17 @@ export default function AdminPortal() {
 
             if (registrationsData) setRegistrations(registrationsData);
 
-
             const { data: votesData } = await supabase
                 .from('user_votes')
                 .select('aspirant_id');
 
             if (votesData) {
-
                 const counts = {};
                 votesData.forEach(v => {
                     counts[v.aspirant_id] = (counts[v.aspirant_id] || 0) + 1;
                 });
                 setVotes(counts);
             }
-
-
 
             const { data: profilesData } = await supabase
                 .from('profiles')
@@ -119,8 +128,7 @@ export default function AdminPortal() {
 
             if (profilesData) setProfiles(profilesData);
 
-            const totalVotes = (votesData || [])
-                .reduce((sum, vote) => sum + 1, 0);
+            const totalVotes = (votesData || []).reduce((sum, vote) => sum + 1, 0);
             const pendingRegistrations = registrationsData?.filter(r => r.status === 'pending').length || 0;
             const approvedRegistrations = registrationsData?.filter(r => r.status === 'approved').length || 0;
             const rejectedRegistrations = registrationsData?.filter(r => r.status === 'rejected').length || 0;
@@ -140,15 +148,12 @@ export default function AdminPortal() {
         }
     };
 
-
-
     const [votingTrends, setVotingTrends] = useState([]);
     const [trendsLoading, setTrendsLoading] = useState(false);
 
     const fetchVotingTrends = async () => {
         setTrendsLoading(true);
         try {
-
             const { data: votesData, error } = await supabase
                 .from('user_votes')
                 .select('voted_at');
@@ -156,13 +161,10 @@ export default function AdminPortal() {
             if (!error && votesData) {
                 const buckets = {};
 
-
                 for (let hour = 0; hour < 24; hour++) {
                     const hourLabel = `${hour.toString().padStart(2, '0')}:00`;
                     buckets[hourLabel] = 0;
                 }
-
-
 
                 votesData.forEach(v => {
                     const date = new Date(v.voted_at);
@@ -179,7 +181,6 @@ export default function AdminPortal() {
             }
         } catch (error) {
             console.error('Error fetching voting trends:', error);
-
             const trends = generateTrendsFromTotalVotes(stats.totalVotes);
             setVotingTrends(trends);
         } finally {
@@ -187,10 +188,8 @@ export default function AdminPortal() {
         }
     };
 
-
     const generateSampleTrendsData = () => {
         const totalVotes = stats.totalVotes || 10000;
-
         return [
             { hour: '00:00', votes: Math.round(totalVotes * 0.05) },
             { hour: '04:00', votes: Math.round(totalVotes * 0.07) },
@@ -202,18 +201,28 @@ export default function AdminPortal() {
         ];
     };
 
+    const generateTrendsFromTotalVotes = (totalVotes) => {
+        return [
+            { hour: '00:00', votes: Math.round(totalVotes * 0.02) },
+            { hour: '04:00', votes: Math.round(totalVotes * 0.05) },
+            { hour: '08:00', votes: Math.round(totalVotes * 0.15) },
+            { hour: '12:00', votes: Math.round(totalVotes * 0.40) },
+            { hour: '16:00', votes: Math.round(totalVotes * 0.70) },
+            { hour: '20:00', votes: Math.round(totalVotes * 0.90) },
+            { hour: '23:59', votes: totalVotes }
+        ];
+    };
+
     useEffect(() => {
         if (activeTab === 'analytics' || activeTab === 'dashboard') {
             fetchVotingTrends();
         }
     }, [activeTab, stats.totalVotes]);
 
-
     const chartTrendsData = useMemo(() => {
         if (votingTrends.length > 0) {
             return votingTrends;
         }
-
         return generateSampleTrendsData();
     }, [votingTrends]);
 
@@ -268,13 +277,19 @@ export default function AdminPortal() {
         return () => subscription.unsubscribe();
     };
 
-
     const handleApproveRegistration = async (registrationId) => {
+        setIsProcessing(true);
+
         try {
-           
             const registration = registrations.find(r => r.id === registrationId);
 
+            if (!registration) {
+                throw new Error('Registration not found');
+            }
 
+            console.log('Processing approval for:', registration.full_name);
+
+            // 1. Insert into aspirants table
             const { error: aspirantError } = await supabase
                 .from('aspirants')
                 .insert([{
@@ -288,118 +303,203 @@ export default function AdminPortal() {
                     ward: registration.ward
                 }]);
 
-            if (aspirantError) throw aspirantError;
+            if (aspirantError) {
+                console.error('Aspirant insert error:', aspirantError);
+                throw new Error(`Database error: ${aspirantError.message}`);
+            }
 
-
+            // 2. Update registration status
             const { error: updateError } = await supabase
                 .from('aspirant_registrations')
                 .update({ status: 'approved' })
                 .eq('id', registrationId);
 
-            if (updateError) throw updateError;
+            if (updateError) {
+                console.error('Update error:', updateError);
+                throw new Error(`Update error: ${updateError.message}`);
+            }
 
-            const { data: newAspirant } = await supabase
+            // 3. Get the new aspirant ID and create votes entry
+            const { data: newAspirant, error: selectError } = await supabase
                 .from('aspirants')
                 .select('id')
                 .eq('name', registration.full_name)
                 .single();
 
+            if (selectError) {
+                console.error('Select error:', selectError);
+                // Non-critical error, continue
+            }
+
             if (newAspirant) {
-                await supabase
+                const { error: votesError } = await supabase
                     .from('votes')
                     .insert([{
                         aspirant_id: newAspirant.id,
                         count: 0
                     }]);
+
+                if (votesError) {
+                    console.error('Votes insert error:', votesError);
+                    // Non-critical error, continue
+                }
             }
 
-            //send email to aspirantEmail about approval (not implemented yet)
-            const result = await fetch(`${API_URL}/voters/send-email`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json', 
-                    'Accept': 'application/json' 
-                 
-                },
-                body: JSON.stringify({
-                    email: registration.email,
-                    subject: "Registration Approved",
-                    message: "Your aspirant registration has been approved. You are now an official candidate in the election."
-                })
-            });
+            // 4. SEND APPROVAL EMAIL VIA EMAILJS
+            let emailSent = false;
 
-            if (!result.ok) {
-                console.error('Failed to send approval email');
-                alert('Registration approved and email notification failed.');
+            try {
+                // Check if EmailJS is configured
+                if (!import.meta.env.VITE_EMAILJS_SERVICE_ID ||
+                    !import.meta.env.VITE_EMAILJS_TEMPLATE_ID_APPROVAL) {
+                    throw new Error('EmailJS configuration missing');
+                }
+
+                const templateParams = {
+                    to_name: registration.full_name,
+                    to_email: registration.email,
+                    party: registration.party,
+                    seat: registration.seat,
+                    county: registration.county || 'Not specified',
+                    constituency: registration.constituency || 'Not specified',
+                    ward: registration.ward || 'Not specified',
+                    approval_date: new Date().toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    })
+                };
+
+                console.log('📧 Sending approval email with params:', templateParams);
+
+                const emailResponse = await emailjs.send(
+                    import.meta.env.VITE_EMAILJS_SERVICE_ID,
+                    import.meta.env.VITE_EMAILJS_TEMPLATE_ID_APPROVAL,
+                    templateParams
+                );
+
+                console.log('✅ Approval email sent:', emailResponse);
+                emailSent = true;
+
+            } catch (emailError) {
+                console.error('❌ Approval email error:', {
+                    message: emailError.message,
+                    text: emailError.text,
+                    status: emailError.status
+                });
+
+                // Log specific EmailJS errors
+                if (emailError.text?.includes('Invalid Public Key')) {
+                    console.error('Public key is invalid or not initialized');
+                } else if (emailError.text?.includes('Invalid Service ID')) {
+                    console.error('Service ID is incorrect');
+                } else if (emailError.text?.includes('Invalid Template ID')) {
+                    console.error('Template ID is incorrect');
+                }
             }
-            else {
-                alert('Registration approved and email notification sent to the aspirant.');
+
+            // 5. Show appropriate message based on email status
+            if (emailSent) {
+                alert(`✅ ${registration.full_name} approved successfully! Confirmation email sent to ${registration.email}`);
+            } else {
+                alert(`⚠️ ${registration.full_name} approved but email notification failed. The aspirant has been added to the system.`);
             }
 
-
-            fetchData();
+            await fetchData();
             setShowRegistrationDetails(false);
+
         } catch (error) {
-            console.error('Error approving registration:', error);
-            alert('Failed to approve registration. Please try again.');
+            console.error('❌ Error in approval process:', error);
+            alert(`Failed to approve registration: ${error.message}`);
+        } finally {
+            setIsProcessing(false);
         }
     };
 
-    const handleRejectRegistration = async (registrationId, aspirantEmail) => {
-        try {
+    const handleRejectRegistration = async (registration, reason, additionalMessage) => {
+        setIsProcessing(true);
 
-            const registration = registrations.find(r => r.id === registrationId);
+        try {
+            // 1. Update registration status
             const { error } = await supabase
                 .from('aspirant_registrations')
                 .update({ status: 'rejected' })
-                .eq('id', registrationId);
+                .eq('id', registration.id);
 
             if (error) throw error;
 
+            // 2. SEND REJECTION EMAIL VIA EMAILJS
+            let emailSent = false;
 
-            const result = await fetch(`${API_URL}/voters/send-email`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                     'Accept': 'application/json' 
-                    
-                },
-                body: JSON.stringify({
-                    email: registration.email,
-                    subject: "Registration Rejected",
-                    message: "Your aspirant registration has been rejected."
-                })
-            });
+            try {
+                // Check if EmailJS is configured
+                if (!import.meta.env.VITE_EMAILJS_SERVICE_ID ||
+                    !import.meta.env.VITE_EMAILJS_TEMPLATE_ID_REJECTION) {
+                    throw new Error('EmailJS configuration missing');
+                }
 
-            if (!result.ok) {
-                console.error('Failed to send rejection email');
-                alert('Registration rejected and email notification failed.');
+                const templateParams = {
+                    to_name: registration.full_name,
+                    to_email: registration.email,
+                    party: registration.party,
+                    seat: registration.seat,
+                    rejection_reason: reason,
+                    next_steps: additionalMessage || 'You may reapply in the next election cycle',
+                    review_date: new Date().toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    })
+                };
 
+                console.log('📧 Sending rejection email with params:', templateParams);
+
+                const emailResponse = await emailjs.send(
+                    import.meta.env.VITE_EMAILJS_SERVICE_ID,
+                    import.meta.env.VITE_EMAILJS_TEMPLATE_ID_REJECTION,
+                    templateParams
+                );
+
+                console.log('✅ Rejection email sent:', emailResponse);
+                emailSent = true;
+
+            } catch (emailError) {
+                console.error('❌ Rejection email error:', {
+                    message: emailError.message,
+                    text: emailError.text,
+                    status: emailError.status
+                });
             }
-            else {
-                alert('Registration rejected and email notification sent to the aspirant.');
+
+            // 3. Show appropriate message
+            if (emailSent) {
+                alert(`✅ ${registration.full_name} rejected. Notification email sent.`);
+            } else {
+                alert(`⚠️ ${registration.full_name} rejected but email notification failed.`);
             }
-            fetchData();
+
+            await fetchData();
+            setShowRejectDialog(false);
+            setSelectedForRejection(null);
             setShowRegistrationDetails(false);
+
         } catch (error) {
             console.error('Error rejecting registration:', error);
             alert('Failed to reject registration. Please try again.');
+        } finally {
+            setIsProcessing(false);
         }
     };
-
-
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
         navigate('/');
     };
 
-
     const getChartData = () => {
         const seatData = {};
 
         aspirants.forEach(aspirant => {
-
             const voteCount = votes[aspirant.id] ?? 0;
 
             if (!seatData[aspirant.seat]) {
@@ -450,13 +550,91 @@ export default function AdminPortal() {
             .slice(0, 5);
     };
 
-
-
-
     const chartData = getChartData();
     const topAspirants = getTopAspirants();
     const partyDistribution = getPartyDistribution();
     const COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#6B7280'];
+
+    // Rejection Dialog Component
+    const RejectionDialog = ({ registration, onClose, onConfirm }) => {
+        const [reason, setReason] = useState('');
+        const [additionalMsg, setAdditionalMsg] = useState('');
+
+        const rejectionReasons = [
+            'Incomplete documentation',
+            'Does not meet age requirement',
+            'Invalid nomination papers',
+            'Criminal record',
+            'Party not registered',
+            'Missing signatures',
+            'Duplicate application',
+            'Other'
+        ];
+
+        const handleSubmit = (e) => {
+            e.preventDefault();
+            onConfirm(registration, reason, additionalMsg);
+        };
+
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg p-6 max-w-md w-full">
+                    <h3 className="text-lg font-bold mb-4">Reject Registration</h3>
+                    <p className="mb-4 text-sm text-gray-600">
+                        Rejecting: <span className="font-semibold">{registration.full_name}</span>
+                    </p>
+                    <form onSubmit={handleSubmit}>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-2">
+                                Reason for Rejection *
+                            </label>
+                            <select
+                                className="w-full p-2 border rounded"
+                                value={reason}
+                                onChange={(e) => setReason(e.target.value)}
+                                required
+                            >
+                                <option value="">Select a reason...</option>
+                                {rejectionReasons.map(r => (
+                                    <option key={r} value={r}>{r}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-2">
+                                Additional Message (Optional)
+                            </label>
+                            <textarea
+                                className="w-full p-2 border rounded"
+                                rows="3"
+                                value={additionalMsg}
+                                onChange={(e) => setAdditionalMsg(e.target.value)}
+                                placeholder="Add any specific details or next steps..."
+                            />
+                        </div>
+
+                        <div className="flex justify-end space-x-2">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2 text-gray-600 border rounded hover:bg-gray-100"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                                disabled={!reason || isProcessing}
+                            >
+                                {isProcessing ? 'Processing...' : 'Confirm Rejection'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        );
+    };
 
     if (loading) {
         return (
@@ -471,6 +649,7 @@ export default function AdminPortal() {
 
     return (
         <div className="min-h-screen bg-linear-to-br from-gray-50 to-blue-50/30 flex">
+            {/* Sidebar */}
             <div className="w-64 bg-white border-r border-gray-200 min-h-screen shadow-lg">
                 <div className="p-6 border-b border-gray-200">
                     <div className="flex items-center gap-3">
@@ -495,10 +674,11 @@ export default function AdminPortal() {
                             <button
                                 key={item.id}
                                 onClick={() => setActiveTab(item.id)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === item.id
-                                    ? 'bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
-                                    : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
-                                    }`}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                                    activeTab === item.id
+                                        ? 'bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
+                                        : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+                                }`}
                             >
                                 <Icon size={20} />
                                 <span className="font-medium">{item.label}</span>
@@ -523,9 +703,10 @@ export default function AdminPortal() {
                 </div>
             </div>
 
+            {/* Main Content */}
             <div className="flex-1">
                 <main className="p-8">
-
+                    {/* Header */}
                     <div className="flex items-center justify-between mb-8">
                         <div>
                             <h2 className="text-2xl font-bold text-gray-900 capitalize">
@@ -564,10 +745,10 @@ export default function AdminPortal() {
                         </div>
                     </div>
 
-
+                    {/* Dashboard Tab */}
                     {activeTab === 'dashboard' && (
                         <div className="space-y-8">
-
+                            {/* Stats Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                 <div className="rounded-2xl bg-linear-to-r from-blue-500 to-blue-600 p-6 text-white shadow-xl">
                                     <div className="flex items-center justify-between">
@@ -626,9 +807,8 @@ export default function AdminPortal() {
                                 </div>
                             </div>
 
-
+                            {/* Charts */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
                                 <div className="rounded-2xl bg-white p-6 border border-gray-200 shadow-lg">
                                     <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
                                         <Award className="h-5 w-5 text-yellow-500" />
@@ -646,7 +826,6 @@ export default function AdminPortal() {
                                         </ResponsiveContainer>
                                     </div>
                                 </div>
-
 
                                 <div className="rounded-2xl bg-white p-6 border border-gray-200 shadow-lg">
                                     <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
@@ -677,7 +856,7 @@ export default function AdminPortal() {
                                 </div>
                             </div>
 
-
+                            {/* Recent Activity */}
                             <div className="rounded-2xl bg-white p-6 border border-gray-200 shadow-lg">
                                 <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
                                     <Activity className="h-5 w-5 text-green-600" />
@@ -687,8 +866,10 @@ export default function AdminPortal() {
                                     {registrations.slice(0, 3).map(registration => (
                                         <div key={registration.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                                             <div className="flex items-center gap-3">
-                                                <div className={`h-10 w-10 rounded-full flex items-center justify-center ${registration.status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
-                                                    registration.status === 'approved' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                                <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                                                    registration.status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
+                                                    registration.status === 'approved' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                                                }`}>
                                                     {registration.status === 'pending' ? <Clock size={20} /> :
                                                         registration.status === 'approved' ? <CheckCircle size={20} /> : <XCircle size={20} />}
                                                 </div>
@@ -698,8 +879,10 @@ export default function AdminPortal() {
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${registration.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                    registration.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                                    registration.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                    registration.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                                }`}>
                                                     {registration.status.charAt(0).toUpperCase() + registration.status.slice(1)}
                                                 </span>
                                                 <p className="text-sm text-gray-500 mt-1">
@@ -713,6 +896,7 @@ export default function AdminPortal() {
                         </div>
                     )}
 
+                    {/* Aspirants Tab */}
                     {activeTab === 'aspirants' && (
                         <AspirantPanel
                             aspirants={aspirants}
@@ -724,6 +908,7 @@ export default function AdminPortal() {
                         />
                     )}
 
+                    {/* Registrations Tab */}
                     {activeTab === 'registrations' && (
                         <div className="space-y-6">
                             {/* Registration Stats */}
@@ -760,8 +945,7 @@ export default function AdminPortal() {
                                 </div>
                             </div>
 
-
-
+                            {/* Registrations Table */}
                             <div className="rounded-2xl bg-white border border-gray-200 shadow-lg overflow-hidden">
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
@@ -836,8 +1020,10 @@ export default function AdminPortal() {
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4">
-                                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${registration.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                            registration.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                                            registration.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                            registration.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                                        }`}>
                                                             {registration.status.charAt(0).toUpperCase() + registration.status.slice(1)}
                                                         </span>
                                                     </td>
@@ -864,15 +1050,20 @@ export default function AdminPortal() {
                                                             {registration.status === 'pending' && (
                                                                 <>
                                                                     <button
-                                                                        onClick={() => handleApproveRegistration(registration.id, registration.email)}
-                                                                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                                                        onClick={() => handleApproveRegistration(registration.id)}
+                                                                        disabled={isProcessing}
+                                                                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
                                                                         title="Approve"
                                                                     >
                                                                         <Check size={18} />
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => handleRejectRegistration(registration.id, registration.email)}
-                                                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                        onClick={() => {
+                                                                            setSelectedForRejection(registration);
+                                                                            setShowRejectDialog(true);
+                                                                        }}
+                                                                        disabled={isProcessing}
+                                                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                                                                         title="Reject"
                                                                     >
                                                                         <X size={18} />
@@ -896,10 +1087,12 @@ export default function AdminPortal() {
                         </div>
                     )}
 
-
+                    {/* Voters Tab */}
                     {activeTab === 'voters' && (
                         <VoterManagement />
                     )}
+
+                    {/* Analytics Tab */}
                     {activeTab === 'analytics' && (
                         <div className="space-y-8">
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1066,13 +1259,25 @@ export default function AdminPortal() {
                             </div>
                         </div>
                     )}
+
+                    {/* Settings Tab */}
                     {activeTab === 'settings' && (
                         <AdminSettings />
-
                     )}
                 </main>
             </div>
 
+            {/* Rejection Dialog */}
+            {showRejectDialog && selectedForRejection && (
+                <RejectionDialog
+                    registration={selectedForRejection}
+                    onClose={() => {
+                        setShowRejectDialog(false);
+                        setSelectedForRejection(null);
+                    }}
+                    onConfirm={handleRejectRegistration}
+                />
+            )}
         </div>
     );
 }

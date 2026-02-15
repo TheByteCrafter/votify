@@ -157,10 +157,10 @@ const LoginPage = ({ onLoginSuccess }) => {
       setMessage('Local ban cleared. You may try logging in again.');
     }
   };
-  // If banned, show ban screen
+  
   if (isBanned) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-900 to-rose-900 flex items-center justify-center p-6 font-sans">
+      <div className="min-h-screen bg-linear-to-br from-red-900 to-rose-900 flex items-center justify-center p-6 font-sans">
         <div className="w-full max-w-lg bg-white/10 backdrop-blur-lg border border-white/20 rounded-3xl p-8 shadow-2xl">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-red-500/20 border border-red-500/30 rounded-2xl mb-6">
