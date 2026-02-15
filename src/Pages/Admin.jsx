@@ -42,7 +42,7 @@ export default function AdminPortal() {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [showAddModal, setShowAddModal] = useState(false);
     const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
- 
+
 
     const [stats, setStats] = useState({
         totalVotes: 0,
@@ -313,10 +313,11 @@ export default function AdminPortal() {
             }
 
             //send email to aspirantEmail about approval (not implemented yet)
-            const result=await fetch(`${API_URL}/api/voters/send-email`, {
+            const result = await fetch(`${API_URL}/api/voters/send-email`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
                 },
                 body: JSON.stringify({
                     email: registration.email,
@@ -325,11 +326,11 @@ export default function AdminPortal() {
                 })
             });
 
-            if(!result.ok){
+            if (!result.ok) {
                 console.error('Failed to send approval email');
                 alert('Registration approved and email notification failed.');
             }
-            else{
+            else {
                 alert('Registration approved and email notification sent to the aspirant.');
             }
 
@@ -342,7 +343,7 @@ export default function AdminPortal() {
         }
     };
 
-    const handleRejectRegistration = async (registrationId,aspirantEmail) => {
+    const handleRejectRegistration = async (registrationId, aspirantEmail) => {
         try {
 
             const registration = registrations.find(r => r.id === registrationId);
@@ -353,11 +354,12 @@ export default function AdminPortal() {
 
             if (error) throw error;
 
-            //send email to aspirantEmail about rejection 
-            const result=await fetch(`${API_URL}/api/voters/send-email`, {
+
+            const result = await fetch(`${API_URL}/api/voters/send-email`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
                 },
                 body: JSON.stringify({
                     email: registration.email,
@@ -365,13 +367,13 @@ export default function AdminPortal() {
                     message: "Your aspirant registration has been rejected."
                 })
             });
-            
-            if(!result.ok){
+
+            if (!result.ok) {
                 console.error('Failed to send rejection email');
                 alert('Registration rejected and email notification failed.');
-                
+
             }
-            else{
+            else {
                 alert('Registration rejected and email notification sent to the aspirant.');
             }
             fetchData();
@@ -755,8 +757,8 @@ export default function AdminPortal() {
                                 </div>
                             </div>
 
-                           
-                           
+
+
                             <div className="rounded-2xl bg-white border border-gray-200 shadow-lg overflow-hidden">
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
@@ -859,14 +861,14 @@ export default function AdminPortal() {
                                                             {registration.status === 'pending' && (
                                                                 <>
                                                                     <button
-                                                                        onClick={() => handleApproveRegistration(registration.id,registration.email)}
+                                                                        onClick={() => handleApproveRegistration(registration.id, registration.email)}
                                                                         className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                                                                         title="Approve"
                                                                     >
                                                                         <Check size={18} />
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => handleRejectRegistration(registration.id,registration.email)}
+                                                                        onClick={() => handleRejectRegistration(registration.id, registration.email)}
                                                                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                                         title="Reject"
                                                                     >
@@ -891,7 +893,7 @@ export default function AdminPortal() {
                         </div>
                     )}
 
-                 
+
                     {activeTab === 'voters' && (
                         <VoterManagement />
                     )}
