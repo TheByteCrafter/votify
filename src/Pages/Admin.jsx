@@ -590,9 +590,9 @@ export default function AdminPortal() {
     }
 
     return (
-        <div className="min-h-screen bg-linear-to-br from-gray-50 to-blue-50/30 flex">
-            {/* Sidebar */}
-            <div className="w-64 bg-white border-r border-gray-200 min-h-screen shadow-lg">
+        <div className="h-screen flex overflow-hidden bg-linear-to-br from-gray-50 to-blue-50/30">
+            {/* Fixed Sidebar */}
+            <div className="w-64 bg-white border-r border-gray-200 shadow-lg flex-shrink-0 fixed h-screen overflow-y-auto">
                 <div className="p-6 border-b border-gray-200">
                     <div className="flex items-center gap-3">
                         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-red-600 to-orange-600 text-white shadow-lg">
@@ -635,56 +635,59 @@ export default function AdminPortal() {
                 </nav>
             </div>
 
-            {/* Main Content */}
-            <div className="flex-1 overflow-auto">
-                {/* Top Bar with Logout Button */}
-                <div className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center sticky top-0 z-10">
-                    <div>
-                        <h2 className="text-2xl font-bold text-gray-900 capitalize">
-                            {activeTab === 'dashboard' ? 'Dashboard Overview' :
-                                activeTab === 'aspirants' ? 'Candidate Management' :
-                                    activeTab === 'registrations' ? 'Candidate Registrations' :
-                                        activeTab === 'voters' ? 'Voter Management' :
-                                            activeTab === 'analytics' ? 'Analytics & Reports' :
-                                                'Settings'}
-                        </h2>
-                        <p className="text-gray-500 mt-1">
-                            {activeTab === 'dashboard' ? 'Real-time election statistics and monitoring' :
-                                activeTab === 'aspirants' ? 'Manage registered candidates and their details' :
-                                    activeTab === 'registrations' ? 'Review and approve candidate applications' :
-                                        activeTab === 'voters' ? 'View registered voter information' :
-                                            activeTab === 'analytics' ? 'Detailed election analytics and reports' :
-                                                'System configuration and settings'}
-                        </p>
-                    </div>
-                    
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => navigate('/aspirant')}
-                            className="flex items-center gap-2 bg-linear-to-r from-green-600 to-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:shadow-lg transition-all"
-                        >
-                            <UserPlus size={18} />
-                            Registration Portal
-                        </button>
-                        <button
-                            onClick={() => navigate('/user')}
-                            className="flex items-center gap-2 bg-linear-to-r from-blue-600 to-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:shadow-lg transition-all"
-                        >
-                            <UserCheck size={18} />
-                            Voting Portal
-                        </button>
-                        <button
-                            onClick={handleLogout}
-                            className="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg hover:shadow-xl"
-                            title="Logout"
-                        >
-                            <LogOut size={18} />
-                            <span className="hidden md:inline">Logout</span>
-                        </button>
+            {/* Main Content Area - Fixed positioning offset */}
+            <div className="flex-1 ml-64 flex flex-col h-screen overflow-hidden">
+                {/* Fixed Top Bar */}
+                <div className="bg-white border-b border-gray-200 px-8 py-4 flex-shrink-0 fixed top-0 right-0 left-64 z-10">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h2 className="text-2xl font-bold text-gray-900 capitalize">
+                                {activeTab === 'dashboard' ? 'Dashboard Overview' :
+                                    activeTab === 'aspirants' ? 'Candidate Management' :
+                                        activeTab === 'registrations' ? 'Candidate Registrations' :
+                                            activeTab === 'voters' ? 'Voter Management' :
+                                                activeTab === 'analytics' ? 'Analytics & Reports' :
+                                                    'Settings'}
+                            </h2>
+                            <p className="text-gray-500 mt-1">
+                                {activeTab === 'dashboard' ? 'Real-time election statistics and monitoring' :
+                                    activeTab === 'aspirants' ? 'Manage registered candidates and their details' :
+                                        activeTab === 'registrations' ? 'Review and approve candidate applications' :
+                                            activeTab === 'voters' ? 'View registered voter information' :
+                                                activeTab === 'analytics' ? 'Detailed election analytics and reports' :
+                                                    'System configuration and settings'}
+                            </p>
+                        </div>
+                        
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => navigate('/aspirant')}
+                                className="flex items-center gap-2 bg-linear-to-r from-green-600 to-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:shadow-lg transition-all"
+                            >
+                                <UserPlus size={18} />
+                                <span className="hidden md:inline">Registration Portal</span>
+                            </button>
+                            <button
+                                onClick={() => navigate('/user')}
+                                className="flex items-center gap-2 bg-linear-to-r from-blue-600 to-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:shadow-lg transition-all"
+                            >
+                                <UserCheck size={18} />
+                                <span className="hidden md:inline">Voting Portal</span>
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                className="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg hover:shadow-xl"
+                                title="Logout"
+                            >
+                                <LogOut size={18} />
+                                <span className="hidden md:inline">Logout</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <main className="p-8">
+                {/* Scrollable Content - with padding for fixed header */}
+                <main className="flex-1 overflow-y-auto mt-24 p-8">
                     {/* Dashboard Tab */}
                     {activeTab === 'dashboard' && (
                         <div className="space-y-8">
@@ -1064,7 +1067,7 @@ export default function AdminPortal() {
                 </main>
             </div>
 
-            
+            {/* Rejection Dialog */}
             {showRejectDialog && selectedForRejection && (
                 <RejectionDialog
                     registration={selectedForRejection}
