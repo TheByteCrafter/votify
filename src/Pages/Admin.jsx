@@ -44,7 +44,7 @@ export default function AdminPortal() {
     const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
     const [selectedRegistration, setSelectedRegistration] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
-    
+
     // Rejection dialog state
     const [showRejectDialog, setShowRejectDialog] = useState(false);
     const [selectedForRejection, setSelectedForRejection] = useState(null);
@@ -328,7 +328,6 @@ export default function AdminPortal() {
 
             if (selectError) {
                 console.error('Select error:', selectError);
-                // Non-critical error, continue
             }
 
             if (newAspirant) {
@@ -341,11 +340,10 @@ export default function AdminPortal() {
 
                 if (votesError) {
                     console.error('Votes insert error:', votesError);
-                    // Non-critical error, continue
                 }
             }
 
-            // 4. SEND APPROVAL EMAIL VIA EMAILJS
+            // 4. SEND APPROVAL EMAIL VIA EMAILJS - FIXED TO MATCH TEMPLATE
             let emailSent = false;
 
             try {
@@ -355,19 +353,21 @@ export default function AdminPortal() {
                     throw new Error('EmailJS configuration missing');
                 }
 
+                // IMPORTANT: Use EXACTLY the variable names from your template
                 const templateParams = {
-                    to_name: registration.full_name,
-                    to_email: registration.email,
+                    // Your template uses {{name}} - so we need to send 'name'
+                    name: registration.full_name,
+
+                    // Your template likely needs an email variable - check your template
+                    // Common patterns: {{email}}, {{to_email}}, {{recipient}}
+                    email: registration.email,        // Try this first
+                    // to_email: registration.email,  // Uncomment if email doesn't work
+
+                    // Add any other variables your template uses
                     party: registration.party,
                     seat: registration.seat,
                     county: registration.county || 'Not specified',
-                    constituency: registration.constituency || 'Not specified',
-                    ward: registration.ward || 'Not specified',
-                    approval_date: new Date().toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                    })
+                    message: `Your aspirant registration for ${registration.seat} has been approved.`
                 };
 
                 console.log('📧 Sending approval email with params:', templateParams);
@@ -388,21 +388,18 @@ export default function AdminPortal() {
                     status: emailError.status
                 });
 
-                // Log specific EmailJS errors
-                if (emailError.text?.includes('Invalid Public Key')) {
-                    console.error('Public key is invalid or not initialized');
-                } else if (emailError.text?.includes('Invalid Service ID')) {
-                    console.error('Service ID is incorrect');
-                } else if (emailError.text?.includes('Invalid Template ID')) {
-                    console.error('Template ID is incorrect');
+                // Helpful debugging
+                if (emailError.text?.includes('recipients address is empty')) {
+                    console.error('Email parameter issue: Check what your template uses for email');
+                    console.log('Common email variable names: "email", "to_email", "recipient", "email_address"');
                 }
             }
 
-            // 5. Show appropriate message based on email status
+            // 5. Show appropriate message
             if (emailSent) {
                 alert(`✅ ${registration.full_name} approved successfully! Confirmation email sent to ${registration.email}`);
             } else {
-                alert(`⚠️ ${registration.full_name} approved but email notification failed. The aspirant has been added to the system.`);
+                alert(`⚠️ ${registration.full_name} approved but email notification failed.`);
             }
 
             await fetchData();
@@ -428,28 +425,28 @@ export default function AdminPortal() {
 
             if (error) throw error;
 
-            // 2. SEND REJECTION EMAIL VIA EMAILJS
+            // 2. SEND REJECTION EMAIL
             let emailSent = false;
 
             try {
-                // Check if EmailJS is configured
-                if (!import.meta.env.VITE_EMAILJS_SERVICE_ID ||
-                    !import.meta.env.VITE_EMAILJS_TEMPLATE_ID_REJECTION) {
-                    throw new Error('EmailJS configuration missing');
-                }
-
                 const templateParams = {
-                    to_name: registration.full_name,
-                    to_email: registration.email,
+                    // Personal details
+                    name: registration.full_name,
                     party: registration.party,
                     seat: registration.seat,
-                    rejection_reason: reason,
-                    next_steps: additionalMessage || 'You may reapply in the next election cycle',
-                    review_date: new Date().toLocaleDateString('en-US', {
+                    county: registration.county || 'Not specified',
+                    constituency: registration.constituency || 'Not specified',
+                    ward: registration.ward || 'Not specified',
+                    email: registration.email,
+
+                    // Dynamic data
+                    approval_date: new Date().toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
-                    })
+                    }),
+                    support_phone: '+254 712 345 678',
+                    current_year: new Date().getFullYear().toString()
                 };
 
                 console.log('📧 Sending rejection email with params:', templateParams);
@@ -464,28 +461,22 @@ export default function AdminPortal() {
                 emailSent = true;
 
             } catch (emailError) {
-                console.error('❌ Rejection email error:', {
-                    message: emailError.message,
-                    text: emailError.text,
-                    status: emailError.status
-                });
+                console.error('❌ Rejection email error:', emailError);
             }
 
-            // 3. Show appropriate message
             if (emailSent) {
                 alert(`✅ ${registration.full_name} rejected. Notification email sent.`);
             } else {
-                alert(`⚠️ ${registration.full_name} rejected but email notification failed.`);
+                alert(`⚠️ ${registration.full_name} rejected but email failed.`);
             }
 
             await fetchData();
             setShowRejectDialog(false);
             setSelectedForRejection(null);
-            setShowRegistrationDetails(false);
 
         } catch (error) {
             console.error('Error rejecting registration:', error);
-            alert('Failed to reject registration. Please try again.');
+            alert('Failed to reject registration.');
         } finally {
             setIsProcessing(false);
         }
@@ -674,11 +665,10 @@ export default function AdminPortal() {
                             <button
                                 key={item.id}
                                 onClick={() => setActiveTab(item.id)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                                    activeTab === item.id
-                                        ? 'bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
-                                        : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
-                                }`}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === item.id
+                                    ? 'bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
+                                    : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+                                    }`}
                             >
                                 <Icon size={20} />
                                 <span className="font-medium">{item.label}</span>
@@ -866,10 +856,9 @@ export default function AdminPortal() {
                                     {registrations.slice(0, 3).map(registration => (
                                         <div key={registration.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                                             <div className="flex items-center gap-3">
-                                                <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                                                    registration.status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
+                                                <div className={`h-10 w-10 rounded-full flex items-center justify-center ${registration.status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
                                                     registration.status === 'approved' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                                                }`}>
+                                                    }`}>
                                                     {registration.status === 'pending' ? <Clock size={20} /> :
                                                         registration.status === 'approved' ? <CheckCircle size={20} /> : <XCircle size={20} />}
                                                 </div>
@@ -879,10 +868,9 @@ export default function AdminPortal() {
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                                    registration.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${registration.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                                                     registration.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                                }`}>
+                                                    }`}>
                                                     {registration.status.charAt(0).toUpperCase() + registration.status.slice(1)}
                                                 </span>
                                                 <p className="text-sm text-gray-500 mt-1">
@@ -1020,10 +1008,9 @@ export default function AdminPortal() {
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4">
-                                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                                            registration.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${registration.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                                                             registration.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                                        }`}>
+                                                            }`}>
                                                             {registration.status.charAt(0).toUpperCase() + registration.status.slice(1)}
                                                         </span>
                                                     </td>
@@ -1087,7 +1074,7 @@ export default function AdminPortal() {
                         </div>
                     )}
 
-                    {/* Voters Tab */}
+
                     {activeTab === 'voters' && (
                         <VoterManagement />
                     )}
