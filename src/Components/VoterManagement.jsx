@@ -573,7 +573,7 @@ const VoterManagement = () => {
         </div>
       )}
 
-      {/* Add Voter Modal */}
+  
       {isAddingUser && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-[3rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
@@ -658,7 +658,7 @@ const VoterManagement = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Phone Number */}
+                 
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                       Phone
@@ -733,7 +733,6 @@ const VoterManagement = () => {
                   </div>
                 </div>
 
-                {/* Password Info */}
                 <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl">
                   <div className="flex items-center gap-2 mb-1">
                     <AlertCircle size={16} className="text-blue-500" />
@@ -746,7 +745,7 @@ const VoterManagement = () => {
               </div>
 
               <div className="space-y-3">
-                {/* Validation Summary */}
+                
                 {Object.keys(modalValidationErrors).length > 0 && (
                   <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
                     <div className="flex items-center gap-2 mb-2">
