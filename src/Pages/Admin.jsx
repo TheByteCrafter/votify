@@ -635,10 +635,8 @@ export default function AdminPortal() {
                 </nav>
             </div>
 
-            {/* Main Content Area - Fixed positioning offset */}
             <div className="flex-1 ml-64 flex flex-col h-screen overflow-hidden">
-                {/* Fixed Top Bar */}
-                <div className="bg-white border-b border-gray-200 px-8 py-4 flex-shrink-0 fixed top-0 right-0 left-64 z-10">
+                <div className="bg-white border-b border-gray-200 px-8 py-4 shrink-0 fixed top-0 right-0 left-64 z-10">
                     <div className="flex justify-between items-center">
                         <div>
                             <h2 className="text-2xl font-bold text-gray-900 capitalize">
