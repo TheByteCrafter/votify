@@ -271,6 +271,8 @@ export default function AdminPortal() {
 
     const handleApproveRegistration = async (registrationId) => {
         try {
+            const token = await supabase.auth.getSession();
+
             const registration = registrations.find(r => r.id === registrationId);
 
 
@@ -347,6 +349,9 @@ export default function AdminPortal() {
         try {
 
             const registration = registrations.find(r => r.id === registrationId);
+
+            const token = await supabase.auth.getSession();
+            
             const { error } = await supabase
                 .from('aspirant_registrations')
                 .update({ status: 'rejected' })
