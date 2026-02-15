@@ -204,7 +204,7 @@ export default function AdminPortal() {
     // Initial data fetch
     useEffect(() => {
         fetchData(true);
-    }, []); 
+    }, []); // Empty dependency array - only runs once on mount
 
     const [votingTrends, setVotingTrends] = useState([]);
     const [trendsLoading, setTrendsLoading] = useState(false);
@@ -633,61 +633,59 @@ export default function AdminPortal() {
                         );
                     })}
                 </nav>
-
-                <div className="absolute bottom-0 left-0 right-0 p-6">
-                    <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl font-bold text-gray-700 hover:bg-gray-50 transition-all"
-                    >
-                        <LogOut size={18} />
-                        Logout
-                    </button>
-                </div>
             </div>
 
             {/* Main Content */}
             <div className="flex-1 overflow-auto">
-                <main className="p-8">
-                    {/* Header */}
-                    <div className="flex items-center justify-between mb-8">
-                        <div>
-                            <h2 className="text-2xl font-bold text-gray-900 capitalize">
-                                {activeTab === 'dashboard' ? 'Dashboard Overview' :
-                                    activeTab === 'aspirants' ? 'Candidate Management' :
-                                        activeTab === 'registrations' ? 'Candidate Registrations' :
-                                            activeTab === 'voters' ? 'Voter Management' :
-                                                activeTab === 'analytics' ? 'Analytics & Reports' :
-                                                    'Settings'}
-                            </h2>
-                            <p className="text-gray-500 mt-1">
-                                {activeTab === 'dashboard' ? 'Real-time election statistics and monitoring' :
-                                    activeTab === 'aspirants' ? 'Manage registered candidates and their details' :
-                                        activeTab === 'registrations' ? 'Review and approve candidate applications' :
-                                            activeTab === 'voters' ? 'View registered voter information' :
-                                                activeTab === 'analytics' ? 'Detailed election analytics and reports' :
-                                                    'System configuration and settings'}
-                            </p>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => navigate('/aspirant')}
-                                className="flex items-center gap-2 bg-linear-to-r from-green-600 to-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:shadow-lg transition-all"
-                            >
-                                <UserPlus size={18} />
-                                Registration Portal
-                            </button>
-                            <button
-                                onClick={() => navigate('/user')}
-                                className="flex items-center gap-2 bg-linear-to-r from-blue-600 to-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:shadow-lg transition-all"
-                            >
-                                <UserCheck size={18} />
-                                Voting Portal
-                            </button>
-                        </div>
+                {/* Top Bar with Logout Button */}
+                <div className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center sticky top-0 z-10">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-900 capitalize">
+                            {activeTab === 'dashboard' ? 'Dashboard Overview' :
+                                activeTab === 'aspirants' ? 'Candidate Management' :
+                                    activeTab === 'registrations' ? 'Candidate Registrations' :
+                                        activeTab === 'voters' ? 'Voter Management' :
+                                            activeTab === 'analytics' ? 'Analytics & Reports' :
+                                                'Settings'}
+                        </h2>
+                        <p className="text-gray-500 mt-1">
+                            {activeTab === 'dashboard' ? 'Real-time election statistics and monitoring' :
+                                activeTab === 'aspirants' ? 'Manage registered candidates and their details' :
+                                    activeTab === 'registrations' ? 'Review and approve candidate applications' :
+                                        activeTab === 'voters' ? 'View registered voter information' :
+                                            activeTab === 'analytics' ? 'Detailed election analytics and reports' :
+                                                'System configuration and settings'}
+                        </p>
                     </div>
+                    
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => navigate('/aspirant')}
+                            className="flex items-center gap-2 bg-linear-to-r from-green-600 to-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:shadow-lg transition-all"
+                        >
+                            <UserPlus size={18} />
+                            Registration Portal
+                        </button>
+                        <button
+                            onClick={() => navigate('/user')}
+                            className="flex items-center gap-2 bg-linear-to-r from-blue-600 to-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:shadow-lg transition-all"
+                        >
+                            <UserCheck size={18} />
+                            Voting Portal
+                        </button>
+                        <button
+                            onClick={handleLogout}
+                            className="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg hover:shadow-xl"
+                            title="Logout"
+                        >
+                            <LogOut size={18} />
+                            <span className="hidden md:inline">Logout</span>
+                        </button>
+                    </div>
+                </div>
 
-                    {/* Rest of your tabs remain exactly the same */}
+                <main className="p-8">
+                    {/* Dashboard Tab */}
                     {activeTab === 'dashboard' && (
                         <div className="space-y-8">
                             {/* Stats Cards */}
@@ -1066,7 +1064,7 @@ export default function AdminPortal() {
                 </main>
             </div>
 
-            {/* Rejection Dialog */}
+            
             {showRejectDialog && selectedForRejection && (
                 <RejectionDialog
                     registration={selectedForRejection}
