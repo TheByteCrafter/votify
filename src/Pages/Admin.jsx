@@ -373,9 +373,6 @@ export default function AdminPortal() {
                     support_phone: '+254 712 345 678',
                     current_year: new Date().getFullYear().toString()
                 };
-
-
-
                 console.log('📧 Sending approval email with params:', templateParams);
 
                 const emailResponse = await emailjs.send(
@@ -394,7 +391,7 @@ export default function AdminPortal() {
                     status: emailError.status
                 });
 
-                // Helpful debugging
+              
                 if (emailError.text?.includes('recipients address is empty')) {
                     console.error('Email parameter issue: Check what your template uses for email');
                     console.log('Common email variable names: "email", "to_email", "recipient", "email_address"');
