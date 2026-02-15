@@ -576,7 +576,7 @@ const addDetailedPage = (doc, { title, subtitle, candidates, pageNumber, hierarc
         }))
         .sort((a, b) => b.votes - a.votes);
 
-    // Title
+
     doc.setFontSize(18);
     doc.setTextColor(0, 128, 0);
     doc.setFont('helvetica', 'bold');
@@ -586,7 +586,7 @@ const addDetailedPage = (doc, { title, subtitle, candidates, pageNumber, hierarc
     doc.setTextColor(31, 41, 55);
     doc.text(subtitle, doc.internal.pageSize.width / 2, 32, { align: 'center' });
 
-    // Statistics box
+   
     doc.setFillColor(239, 246, 255);
     doc.roundedRect(20, 40, doc.internal.pageSize.width - 40, 25, 2, 2, 'F');
     
@@ -598,7 +598,6 @@ const addDetailedPage = (doc, { title, subtitle, candidates, pageNumber, hierarc
     doc.text(`Registered Voters: N/A`, 160, 52);
     doc.text(`Voter Turnout: N/A`, 220, 52);
 
-    // Determine columns based on hierarchy
     const columns = [
         { header: 'Rank', dataKey: 'rank', width: 15 },
         { header: 'Candidate', dataKey: 'candidate', width: 50 }
@@ -619,8 +618,6 @@ const addDetailedPage = (doc, { title, subtitle, candidates, pageNumber, hierarc
         { header: 'Votes', dataKey: 'votes', width: 20, align: 'right' },
         { header: 'Share', dataKey: 'share', width: 18, align: 'right' }
     );
-
-    // Prepare table body
     const body = sortedCandidates.map((c, idx) => {
         const row = [
             idx + 1,
@@ -640,7 +637,7 @@ const addDetailedPage = (doc, { title, subtitle, candidates, pageNumber, hierarc
         return row;
     });
 
-    // Create table
+
     autoTable(doc, {
         startY: 75,
         head: [columns.map(col => col.header)],
@@ -667,19 +664,17 @@ const addDetailedPage = (doc, { title, subtitle, candidates, pageNumber, hierarc
             return styles;
         }, {}),
         didParseCell: (data) => {
-            // Highlight winner row
+         
             if (data.section === 'body' && data.row.index === 0) {
                 data.cell.styles.fillColor = [255, 247, 237];
                 data.cell.styles.fontStyle = 'bold';
             }
-            // Add zebra striping
+        
             if (data.section === 'body' && data.row.index % 2 === 1) {
                 data.cell.styles.fillColor = [249, 250, 251];
             }
         }
     });
-
-    // Add election statistics
     const finalY = doc.lastAutoTable.finalY + 10;
     
     doc.setFontSize(9);
@@ -696,8 +691,6 @@ const addDetailedPage = (doc, { title, subtitle, candidates, pageNumber, hierarc
         const runnerUp = sortedCandidates[1];
         doc.text(`• Runner-up: ${runnerUp.candidate} (${runnerUp.party}) - ${runnerUp.votes.toLocaleString()} votes`, 25, finalY + 18);
     }
-
-    // Page footer
     doc.setDrawColor(0, 128, 0);
     doc.line(20, doc.internal.pageSize.height - 20, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 20);
     
