@@ -315,7 +315,7 @@ export default function AdminPortal() {
             }
 
             //send email to aspirantEmail about approval (not implemented yet)
-            const result = await fetch(`${API_URL}/api/voters/send-email`, {
+            const result = await fetch(`${API_URL}/voters/send-email`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -351,7 +351,7 @@ export default function AdminPortal() {
             const registration = registrations.find(r => r.id === registrationId);
 
             const token = await supabase.auth.getSession();
-            
+
             const { error } = await supabase
                 .from('aspirant_registrations')
                 .update({ status: 'rejected' })
@@ -360,7 +360,7 @@ export default function AdminPortal() {
             if (error) throw error;
 
 
-            const result = await fetch(`${API_URL}/api/voters/send-email`, {
+            const result = await fetch(`${API_URL}/voters/send-email`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
