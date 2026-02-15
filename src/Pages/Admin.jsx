@@ -30,6 +30,8 @@ import VoterManagement from '../Components/VoterManagement';
 import AdminSettings from '../Components/AdminSettings';
 import AspirantPanel from '../Components/AspirantsPanel';
 
+const API_URL = ' https://votifybackend-h0yt.onrender.com/api';
+
 export default function AdminPortal() {
     const navigate = useNavigate();
     const [aspirants, setAspirants] = useState([]);
@@ -278,6 +280,8 @@ export default function AdminPortal() {
                     name: registration.full_name,
                     party: registration.party,
                     seat: registration.seat,
+                    email: registration.email,
+                    phone: registration.phone,
                     county: registration.county,
                     constituency: registration.constituency,
                     ward: registration.ward
@@ -308,6 +312,28 @@ export default function AdminPortal() {
                     }]);
             }
 
+            //send email to aspirantEmail about approval (not implemented yet)
+            const result=await fetch(`${API_URL}/api/voters/send-email`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: registration.email,
+                    subject: "Registration Approved",
+                    message: "Your aspirant registration has been approved. You are now an official candidate in the election."
+                })
+            });
+
+            if(!result.ok){
+                console.error('Failed to send approval email');
+                alert('Registration approved and email notification failed.');
+            }
+            else{
+                alert('Registration approved and email notification sent to the aspirant.');
+            }
+
+
             fetchData();
             setShowRegistrationDetails(false);
         } catch (error) {
@@ -316,8 +342,10 @@ export default function AdminPortal() {
         }
     };
 
-    const handleRejectRegistration = async (registrationId) => {
+    const handleRejectRegistration = async (registrationId,aspirantEmail) => {
         try {
+
+            const registration = registrations.find(r => r.id === registrationId);
             const { error } = await supabase
                 .from('aspirant_registrations')
                 .update({ status: 'rejected' })
@@ -325,6 +353,27 @@ export default function AdminPortal() {
 
             if (error) throw error;
 
+            //send email to aspirantEmail about rejection (not implemented yet)
+            const result=await fetch(`${API_URL}/voters/send-email`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: registration.email,
+                    subject: "Registration Rejected",
+                    message: "Your aspirant registration has been rejected."
+                })
+            });
+            
+            if(!result.ok){
+                console.error('Failed to send rejection email');
+                alert('Registration rejected and email notification failed.');
+                
+            }
+            else{
+                alert('Registration rejected and email notification sent to the aspirant.');
+            }
             fetchData();
             setShowRegistrationDetails(false);
         } catch (error) {
@@ -706,7 +755,8 @@ export default function AdminPortal() {
                                 </div>
                             </div>
 
-                            {/* Registrations Table */}
+                           
+                           
                             <div className="rounded-2xl bg-white border border-gray-200 shadow-lg overflow-hidden">
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
@@ -809,14 +859,14 @@ export default function AdminPortal() {
                                                             {registration.status === 'pending' && (
                                                                 <>
                                                                     <button
-                                                                        onClick={() => handleApproveRegistration(registration.id)}
+                                                                        onClick={() => handleApproveRegistration(registration.id,registration.email)}
                                                                         className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                                                                         title="Approve"
                                                                     >
                                                                         <Check size={18} />
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => handleRejectRegistration(registration.id)}
+                                                                        onClick={() => handleRejectRegistration(registration.id,registration.email)}
                                                                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                                         title="Reject"
                                                                     >

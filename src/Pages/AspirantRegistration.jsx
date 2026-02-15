@@ -165,13 +165,13 @@ export default function AspirantRegistration() {
             </header>
 
             <main className="mx-auto max-w-4xl p-4 sm:p-8">
-                {/* Progress Steps */}
+              
                 <div className="mb-8">
                     <div className="flex items-center justify-between">
                         {[1, 2, 3].map((stepNum) => (
                             <div key={stepNum} className="flex flex-col items-center">
                                 <div className={`h-12 w-12 rounded-full flex items-center justify-center ${step >= stepNum
-                                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
+                                    ? 'bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
                                     : 'bg-gray-200 text-gray-400'}`}>
                                     {stepNum}
                                 </div>
@@ -180,7 +180,7 @@ export default function AspirantRegistration() {
                                 </span>
                             </div>
                         ))}
-                        <div className="h-1 flex-1 bg-gradient-to-r from-blue-600 via-blue-400 to-gray-300 -mt-6"></div>
+                        <div className="h-1 flex-1 bg-linear-to-r from-blue-600 via-blue-400 to-gray-300 -mt-6"></div>
                     </div>
                 </div>
 
