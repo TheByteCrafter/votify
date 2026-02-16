@@ -147,7 +147,7 @@ const LoginPage = ({ onLoginSuccess }) => {
     }
   };
 
-  const resetLocalBan = () => {
+  /*const resetLocalBan = () => {
     if (confirm('Are you sure you want to reset your local ban? This may not clear server-side restrictions.')) {
       rateLimiter.resetFailedAttempts();
       rateLimiter.clearRateLimit();
@@ -157,7 +157,7 @@ const LoginPage = ({ onLoginSuccess }) => {
       setMessage('Local ban cleared. You may try logging in again.');
     }
   };
-  
+  */
   if (isBanned) {
     return (
       <div className="min-h-screen bg-linear-to-br from-red-900 to-rose-900 flex items-center justify-center p-6 font-sans">
