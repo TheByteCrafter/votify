@@ -145,8 +145,6 @@ export default function AdminPortal() {
     }, [lastFetchTime]);
 
     
-
-    // Optimized realtime subscription
     useEffect(() => {
         const subscription = supabase
             .channel('admin-dashboard')

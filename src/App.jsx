@@ -157,7 +157,6 @@ function App() {
       }
     } catch (error) {
       console.error('Ban check failed:', error);
-      // Conservative approach - if we can't check, assume not banned
       setIsBanned(false);
     } finally {
       setBanCheckComplete(true);

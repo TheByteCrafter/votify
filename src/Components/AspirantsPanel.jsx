@@ -94,7 +94,7 @@ const AspirantPanel = ({
     useEffect(() => {
         const interval = setInterval(() => {
             onRefresh();
-        }, 5000);
+        }, 50000000);
         return () => clearInterval(interval);
     }, [onRefresh]);
 
