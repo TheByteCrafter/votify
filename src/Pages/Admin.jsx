@@ -257,7 +257,7 @@ export default function AdminPortal() {
     const debouncedFetchTrends = useCallback(
         debounce(() => {
             fetchVotingTrends();
-        }, 2000),
+        }, 36000000),
         [fetchVotingTrends]
     );
 
