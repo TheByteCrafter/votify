@@ -153,18 +153,17 @@ export default function AdminPortal() {
     }, [lastFetchTime]);
 
     // Debounced version of fetchData for realtime updates
-    /*const debouncedFetchData = useCallback(
+    const debouncedFetchData = useCallback(
         debounce(() => {
             fetchData(true);
-        }, 5000), // Wait 5 seconds after last call before fetching
+        }, 3600000),
         [fetchData]
-    );*/
+    );
 
     // Optimized realtime subscription
     useEffect(() => {
         const subscription = supabase
             .channel('admin-dashboard')
-            // Only listen to INSERT on votes (most frequent)
             .on('postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'user_votes' },
                 (payload) => {
