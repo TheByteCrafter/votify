@@ -32,7 +32,7 @@ import AspirantPanel from '../Components/AspirantsPanel';
 
 const API_URL = 'https://votifybackend-h0yt.onrender.com/api';
 
-// Simple debounce function
+
 const debounce = (func, wait) => {
     let timeout;
     return (...args) => {
@@ -153,12 +153,12 @@ export default function AdminPortal() {
     }, [lastFetchTime]);
 
     // Debounced version of fetchData for realtime updates
-    const debouncedFetchData = useCallback(
+    /*const debouncedFetchData = useCallback(
         debounce(() => {
             fetchData(true);
         }, 5000), // Wait 5 seconds after last call before fetching
         [fetchData]
-    );
+    );*/
 
     // Optimized realtime subscription
     useEffect(() => {
