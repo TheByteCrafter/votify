@@ -33,14 +33,6 @@ import AspirantPanel from '../Components/AspirantsPanel';
 const API_URL = 'https://votifybackend-h0yt.onrender.com/api';
 
 
-const debounce = (func, wait) => {
-    let timeout;
-    return (...args) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func(...args), wait);
-    };
-};
-
 export default function AdminPortal() {
     const navigate = useNavigate();
     const [aspirants, setAspirants] = useState([]);
@@ -152,13 +144,7 @@ export default function AdminPortal() {
         }
     }, [lastFetchTime]);
 
-    // Debounced version of fetchData for realtime updates
-    const debouncedFetchData = useCallback(
-        debounce(() => {
-            fetchData(true);
-        }, 3600000),
-        [fetchData]
-    );
+    
 
     // Optimized realtime subscription
     useEffect(() => {
@@ -186,24 +172,21 @@ export default function AdminPortal() {
             .on('postgres_changes',
                 { event: 'UPDATE', schema: 'public', table: 'aspirant_registrations' },
                 (payload) => {
-                    // Only fetch if status changed
-                    if (payload.old.status !== payload.new.status) {
-                        debouncedFetchData();
-                    }
+                   
                 }
             )
             .subscribe();
 
         return () => {
-            debouncedFetchData.cancel?.();
+           
             subscription.unsubscribe();
         };
-    }, [debouncedFetchData]);
+    }, []);
 
     // Initial data fetch
     useEffect(() => {
         fetchData(true);
-    }, []); // Empty dependency array - only runs once on mount
+    }, []); 
 
     const [votingTrends, setVotingTrends] = useState([]);
     const [trendsLoading, setTrendsLoading] = useState(false);
@@ -252,22 +235,7 @@ export default function AdminPortal() {
             setTrendsLoading(false);
         }
     }, [activeTab, lastTrendsFetch]);
-
-    // Debounced trends fetch
-    const debouncedFetchTrends = useCallback(
-        debounce(() => {
-            fetchVotingTrends();
-        }, 36000000),
-        [fetchVotingTrends]
-    );
-
-    // Only fetch trends when tab changes
-    useEffect(() => {
-        if (activeTab === 'analytics' || activeTab === 'dashboard') {
-            debouncedFetchTrends();
-        }
-        return () => debouncedFetchTrends.cancel?.();
-    }, [activeTab, debouncedFetchTrends]);
+   
 
     // Memoize all derived data to prevent unnecessary recalculations
     const chartData = useMemo(() => {
