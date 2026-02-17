@@ -27,8 +27,6 @@ const AspirantPanel = ({
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingAspirant, setEditingAspirant] = useState(null);
     const [isloading, setLoading] = useState(false);
-    const [uploading, setUploading] = useState(false);
-    const [profilePreview, setProfilePreview] = useState(null);
     const [formData, setFormData] = useState({
         profile_picture: '',
         name: '',
@@ -104,13 +102,7 @@ const AspirantPanel = ({
     }, [onRefresh]);
 
 
-    useEffect(() => {
-        return () => {
-            if (profilePreview) {
-                URL.revokeObjectURL(profilePreview);
-            }
-        };
-    }, [profilePreview]);
+   
 
 
 
@@ -854,79 +846,109 @@ const AspirantPanel = ({
    
     
     const ImageUploadField = ({ value, onChange }) => {
-        const [preview, setPreview] = useState(value);
-        const [isUploading, setIsUploading] = useState(false);
+    const [preview, setPreview] = useState(value);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadError, setUploadError] = useState(null);
 
-        
-        useEffect(() => {
+    // Update preview when value changes (for edit mode)
+    useEffect(() => {
+        setPreview(value);
+        setUploadError(null);
+    }, [value]);
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            setUploadError('File too large. Max size is 5MB');
+            return;
+        }
+
+        // Validate file type
+        if (!file.type.match(/image\/(jpeg|jpg|png)/)) {
+            setUploadError('Only JPG, JPEG, and PNG files are allowed');
+            return;
+        }
+
+        // Show local preview immediately
+        const localPreview = URL.createObjectURL(file);
+        setPreview(localPreview);
+        setIsUploading(true);
+        setUploadError(null);
+
+        try {
+            // Upload to Cloudinary
+            const imageUrl = await uploadImage(file);
+            
+            // Pass the URL back to parent
+            onChange(imageUrl);
+            
+            // Show success message
+            setSuccess('Image uploaded successfully!');
+
+            // Clear the input value so the same file can be selected again if needed
+            e.target.value = null;
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            setUploadError('Failed to upload image. Please try again.');
+            // Revert preview on error
             setPreview(value);
-        }, [value]);
-
-        const handleFileChange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const localPreview = URL.createObjectURL(file);
-            setPreview(localPreview);
-            setIsUploading(true);
-
-            try {
-                // Upload to Cloudinary
-                const imageUrl = await uploadImage(file);
-
-                // Pass the URL back to parent
-                onChange(imageUrl);
-
-                // Show success message
-                setSuccess('Image uploaded successfully!');
-
-                // Clear the input value so the same file can be selected again if needed
-                e.target.value = null;
-            } catch (error) {
-                console.error('Error uploading image:', error);
-                setError('Failed to upload image. Please try again.');
-                // Revert preview on error
-                setPreview(value);
-            } finally {
-                setIsUploading(false);
-                // Clean up local preview URL
+        } finally {
+            setIsUploading(false);
+            // Clean up local preview URL after a delay (to keep preview visible)
+            setTimeout(() => {
                 URL.revokeObjectURL(localPreview);
-            }
-        };
+            }, 1000);
+        }
+    };
 
-        return (
-            <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Profile Picture
-                </label>
-                <div className="flex items-center gap-4">
-                    <div className="relative">
-                        <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center overflow-hidden border-2 border-gray-200">
-                            {preview ? (
-                                <img
-                                    src={preview}
-                                    alt="Profile Preview"
-                                    className="h-full w-full object-cover"
-                                    onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name || 'User')}&background=blue&color=fff&size=128`;
-                                    }}
-                                />
-                            ) : (
-                                <User size={24} className="text-gray-400" />
-                            )}
-                        </div>
-                        {isUploading && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
-                                <Loader2 size={20} className="animate-spin text-white" />
-                            </div>
+    const handleRemoveImage = () => {
+        setPreview(null);
+        onChange('');
+        setUploadError(null);
+    };
+
+    return (
+        <div className="space-y-2">
+            <label className="block text-sm font-bold text-gray-700 mb-2">
+                Profile Picture
+            </label>
+            <div className="flex items-start gap-4">
+                <div className="relative">
+                    <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center overflow-hidden border-2 border-gray-300 shadow-sm">
+                        {preview ? (
+                            <img
+                                src={preview}
+                                alt="Profile Preview"
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name || 'User')}&background=blue&color=fff&size=128`;
+                                }}
+                            />
+                        ) : (
+                            <User size={32} className="text-gray-400" />
                         )}
                     </div>
-                    <div className="flex-1">
+                    {isUploading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
+                            <Loader2 size={24} className="animate-spin text-white" />
+                        </div>
+                    )}
+                </div>
+                <div className="flex-1">
+                    <div className="flex flex-wrap gap-2">
                         <label className="cursor-pointer">
-                            <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                                isUploading 
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                    : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
+                            }`}>
                                 <Upload size={18} />
                                 <span className="text-sm font-medium">
-                                    {isUploading ? 'Uploading...' : 'Choose Image'}
+                                    {isUploading ? 'Uploading...' : preview ? 'Change Image' : 'Choose Image'}
                                 </span>
                             </div>
                             <input
@@ -935,34 +957,42 @@ const AspirantPanel = ({
                                 onChange={handleFileChange}
                                 className="hidden"
                                 disabled={isUploading}
-                                key={preview} // This forces a re-render when preview changes
                             />
                         </label>
-                        <p className="text-xs text-gray-500 mt-1">
-                            Recommended: Square image, max 5MB
-                        </p>
-                        {value && !isUploading && (
-                            <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                                <span>✓ Image ready to save</span>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setPreview(null);
-                                        onChange('');
-                                    }}
-                                    className="text-red-500 hover:text-red-700 ml-2"
-                                    title="Remove image"
-                                >
-                                    <X size={14} />
-                                </button>
-                            </p>
+                        
+                        {preview && !isUploading && (
+                            <button
+                                type="button"
+                                onClick={handleRemoveImage}
+                                className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition-colors border border-red-200"
+                            >
+                                <X size={18} />
+                                <span className="text-sm font-medium">Remove</span>
+                            </button>
                         )}
                     </div>
+                    
+                    <p className="text-xs text-gray-500 mt-2">
+                        Recommended: Square image, max 5MB (JPG, PNG)
+                    </p>
+                    
+                    {uploadError && (
+                        <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                            <AlertCircle size={12} />
+                            {uploadError}
+                        </p>
+                    )}
+                    
+                    {value && !isUploading && !uploadError && (
+                        <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                            <span>✓ Image ready to save</span>
+                        </p>
+                    )}
                 </div>
             </div>
-        );
-    };
-
+        </div>
+    );
+};
     return (
         <div className="flex-1 flex flex-col min-h-0">
 
@@ -1188,7 +1218,7 @@ const AspirantPanel = ({
                                                                                     constituency: aspirant.constituency || '',
                                                                                     ward: aspirant.ward || ''
                                                                                 });
-                                                                                setProfilePreview(aspirant.profile_picture);
+                                                                                //setProfilePreview(aspirant.profile_picture);
                                                                                 setShowEditModal(true);
                                                                             }}
                                                                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -1401,7 +1431,7 @@ const AspirantPanel = ({
                                     resetForm();
                                 }}
                                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                                disabled={loading || uploading}
+                                disabled={loading}
                             >
                                 <X size={20} className="text-gray-500" />
                             </button>
@@ -1425,7 +1455,7 @@ const AspirantPanel = ({
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                         placeholder="John Doe"
-                                        disabled={loading || uploading}
+                                        disabled={loading}
                                     />
                                 </div>
                                 <div>
@@ -1437,7 +1467,7 @@ const AspirantPanel = ({
                                         onChange={(e) => setFormData({ ...formData, party: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                         placeholder="Party Name"
-                                        disabled={loading || uploading}
+                                        disabled={loading}
                                     />
                                 </div>
                                 <div>
@@ -1447,7 +1477,7 @@ const AspirantPanel = ({
                                         value={formData.seat}
                                         onChange={(e) => setFormData({ ...formData, seat: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        disabled={loading || uploading}
+                                        disabled={loading}
                                     >
                                         {seats.map(seat => (
                                             <option key={seat} value={seat}>{seat}</option>
@@ -1461,7 +1491,7 @@ const AspirantPanel = ({
                                         value={formData.county}
                                         onChange={(e) => setFormData({ ...formData, county: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        disabled={loading || uploading}
+                                        disabled={loading}
                                     >
                                         <option value="">Select County</option>
                                         {counties.map(county => (
@@ -1477,7 +1507,7 @@ const AspirantPanel = ({
                                         onChange={(e) => setFormData({ ...formData, constituency: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                         placeholder="Constituency Name"
-                                        disabled={loading || uploading}
+                                        disabled={loading}
                                     />
                                 </div>
                                 <div>
@@ -1488,7 +1518,7 @@ const AspirantPanel = ({
                                         onChange={(e) => setFormData({ ...formData, ward: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                         placeholder="Ward Name"
-                                        disabled={loading || uploading}
+                                        disabled={loading}
                                     />
                                 </div>
                             </div>
@@ -1500,7 +1530,7 @@ const AspirantPanel = ({
                                         resetForm();
                                     }}
                                     className="px-6 py-2 border border-gray-300 rounded-lg font-bold text-gray-700 hover:bg-gray-50 transition-colors"
-                                    disabled={loading || uploading}
+                                    disabled={loading}
                                 >
                                     Cancel
                                 </button>
@@ -1531,7 +1561,7 @@ const AspirantPanel = ({
                                     resetForm();
                                 }}
                                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                                disabled={loading || uploading}
+                                disabled={loading}
                             >
                                 <X size={20} className="text-gray-500" />
                             </button>
@@ -1554,7 +1584,7 @@ const AspirantPanel = ({
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        disabled={loading || uploading}
+                                        disabled={loading}
                                     />
                                 </div>
                                 <div>
@@ -1565,7 +1595,7 @@ const AspirantPanel = ({
                                         value={formData.party}
                                         onChange={(e) => setFormData({ ...formData, party: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        disabled={loading || uploading}
+                                        disabled={loading}
                                     />
                                 </div>
                                 <div>
@@ -1575,7 +1605,7 @@ const AspirantPanel = ({
                                         value={formData.seat}
                                         onChange={(e) => setFormData({ ...formData, seat: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        disabled={loading || uploading}
+                                      disabled={loading}
                                     >
                                         {seats.map(seat => (
                                             <option key={seat} value={seat}>{seat}</option>
@@ -1589,7 +1619,7 @@ const AspirantPanel = ({
                                         value={formData.county}
                                         onChange={(e) => setFormData({ ...formData, county: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        disabled={loading || uploading}
+                                        disabled={loading}
                                     >
                                         <option value="">Select County</option>
                                         {counties.map(county => (
@@ -1604,7 +1634,7 @@ const AspirantPanel = ({
                                         value={formData.constituency}
                                         onChange={(e) => setFormData({ ...formData, constituency: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        disabled={loading || uploading}
+                                        disabled={loading}
                                     />
                                 </div>
                                 <div>
@@ -1614,7 +1644,7 @@ const AspirantPanel = ({
                                         value={formData.ward}
                                         onChange={(e) => setFormData({ ...formData, ward: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        disabled={loading || uploading}
+                                        disabled={loading}
                                     />
                                 </div>
                             </div>
@@ -1627,7 +1657,7 @@ const AspirantPanel = ({
                                         resetForm();
                                     }}
                                     className="px-6 py-2 border border-gray-300 rounded-lg font-bold text-gray-700 hover:bg-gray-50 transition-colors"
-                                    disabled={loading || uploading}
+                                   disabled={loading}
                                 >
                                     Cancel
                                 </button>
