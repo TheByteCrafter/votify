@@ -852,12 +852,12 @@ const AspirantPanel = ({
         );
     });
    
-    // Image upload input component
+    
     const ImageUploadField = ({ value, onChange }) => {
         const [preview, setPreview] = useState(value);
         const [isUploading, setIsUploading] = useState(false);
 
-        // Update preview when value changes (for edit mode)
+        
         useEffect(() => {
             setPreview(value);
         }, [value]);
@@ -865,8 +865,6 @@ const AspirantPanel = ({
         const handleFileChange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
-            // Show local preview immediately
             const localPreview = URL.createObjectURL(file);
             setPreview(localPreview);
             setIsUploading(true);
