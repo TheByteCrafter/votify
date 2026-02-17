@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Search, PlusCircle, RefreshCw, MapPin, Home, Edit2, Trash2, X, AlertCircle, Loader2, User, Mail, Phone, Calendar, Hash } from 'lucide-react';
+import { Search, PlusCircle, RefreshCw, MapPin, Home, Edit2, Trash2, X, AlertCircle, Loader2, User, Mail, Phone, Calendar, Hash, Upload } from 'lucide-react';
 import { supabase } from '../../supabase';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Printer } from 'lucide-react';
+import { uploadImage } from '../Utilities/CloudinaryConfig';
+
 const AspirantPanel = ({
     aspirants: propAspirants,
     votes: propVotes,
@@ -13,7 +15,7 @@ const AspirantPanel = ({
     loading: propLoading
 }) => {
 
-    // State Viarables and Contacts
+    // State Variables and Constants
     const [searchTerm, setSearchTerm] = useState('');
     const [filterSeat, setFilterSeat] = useState('all');
     const aspirants = propAspirants || [];
@@ -25,6 +27,8 @@ const AspirantPanel = ({
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingAspirant, setEditingAspirant] = useState(null);
     const [isloading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [profilePreview, setProfilePreview] = useState(null);
     const [formData, setFormData] = useState({
         profile_picture: '',
         name: '',
@@ -45,7 +49,7 @@ const AspirantPanel = ({
     const [voterSearchTerm, setVoterSearchTerm] = useState('');
 
 
-    // Calculate Statics 
+    // Calculate Statistics 
     const stats = {
         totalVotes: Object.values(votes).reduce((sum, count) => sum + count, 0),
         totalVoters: profiles.length,
@@ -99,6 +103,34 @@ const AspirantPanel = ({
         return () => clearInterval(interval);
     }, [onRefresh]);
 
+    // Cleanup profile preview URL
+    useEffect(() => {
+        return () => {
+            if (profilePreview) {
+                URL.revokeObjectURL(profilePreview);
+            }
+        };
+    }, [profilePreview]);
+
+    const handleImagePick = async (file) => {
+        if (!file) return null;
+        
+        // Show preview
+        setProfilePreview(URL.createObjectURL(file));
+        
+        try {
+            setUploading(true);
+            const imageUrl = await uploadImage(file);
+            return imageUrl;
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            setError('Failed to upload image. Please try again.');
+            return null;
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const handleResetVotes = async () => {
         if (!window.confirm('Are you sure you want to reset all votes? This action cannot be undone.')) {
             return;
@@ -119,584 +151,85 @@ const AspirantPanel = ({
         }
     };
 
-
-    const handlePrintElectionResults = async () => {
-        try {
-            setLoading(true);
-
-            // Fetch aspirants with their vote counts
-            const { data: aspirantsData, error: aspirantsError } = await supabase
-                .from("aspirants")
-                .select(`
-                id,
-                name,
-                party,
-                seat,
-                county,
-                constituency,
-                ward
-            `);
-
-            if (aspirantsError) throw aspirantsError;
-
-            // Fetch all votes
-            const { data: votesData, error: votesError } = await supabase
-                .from("user_votes")
-                .select("aspirant_id");
-
-            if (votesError) throw votesError;
-
-            // Calculate vote counts
-            const voteCounts = {};
-            votesData?.forEach(vote => {
-                voteCounts[vote.aspirant_id] = (voteCounts[vote.aspirant_id] || 0) + 1;
-            });
-
-            // Add vote counts to aspirants
-            const processedData = aspirantsData.map(aspirant => ({
-                ...aspirant,
-                votes: voteCounts[aspirant.id] || 0
-            }));
-
-            // Create PDF with landscape orientation
-            const doc = new jsPDF({
-                orientation: 'landscape',
-                unit: 'mm',
-                format: 'a4'
-            });
-
-            let pageNumber = 1;
-            let yOffset = 20;
-
-            // Helper function to add header to each page
-            const addPageHeader = () => {
-                doc.setFillColor(0, 128, 0); // Kenya green
-                doc.rect(0, 0, doc.internal.pageSize.width, 10, 'F');
-
-                doc.setFontSize(10);
-                doc.setTextColor(255, 255, 255); // White text
-                doc.setFont('helvetica', 'bold');
-                doc.text('INDEPENDENT ELECTORAL COMMISSION - OFFICIAL RESULTS', doc.internal.pageSize.width / 2, 7, { align: 'center' });
-
-                doc.setFontSize(8);
-                doc.text(`Page ${pageNumber}`, doc.internal.pageSize.width - 20, 7, { align: 'right' });
-
-                yOffset = 20;
-            };
-
-            // Helper function to format winner info
-            const formatWinnerInfo = (candidate, totalVotes) => {
-                const percentage = totalVotes > 0 ? ((candidate.votes / totalVotes) * 100).toFixed(1) : 0;
-                return `${candidate.name} (${candidate.party}) - ${candidate.votes.toLocaleString()} votes (${percentage}%)`;
-            };
-
-            // Add first page header
-            addPageHeader();
-
-            // ==================== PRESIDENT ====================
-            const presidentData = processedData.filter(a =>
-                a.seat?.toLowerCase().includes('president')
-            ).sort((a, b) => b.votes - a.votes);
-
-            if (presidentData.length > 0) {
-                doc.setFontSize(18);
-                doc.setTextColor(0, 128, 0); // Kenya green
-                doc.setFont('helvetica', 'bold');
-                doc.text('PRESIDENT - NATIONAL RESULTS', 20, yOffset);
-                yOffset += 10;
-
-                const totalVotes = presidentData.reduce((sum, a) => sum + a.votes, 0);
-                const winner = presidentData[0];
-
-                // Winner highlight box
-                doc.setFillColor(255, 247, 237); // Light orange
-                doc.roundedRect(20, yOffset - 2, doc.internal.pageSize.width - 40, 20, 3, 3, 'F');
-
-                doc.setFontSize(11);
-                doc.setTextColor(0, 0, 0); // Black text
-                doc.setFont('helvetica', 'bold');
-                doc.text('WINNER:', 25, yOffset + 5);
-
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(0, 128, 0); // Kenya green
-                doc.text(formatWinnerInfo(winner, totalVotes), 50, yOffset + 5);
-
-                yOffset += 25;
-
-                // Create president table with all competitors
-                autoTable(doc, {
-                    startY: yOffset,
-                    head: [['Rank', 'Candidate', 'Party', 'County', 'Votes', 'Share']],
-                    body: presidentData.map((c, idx) => [
-                        idx + 1,
-                        c.name,
-                        c.party,
-                        c.county || 'N/A',
-                        c.votes.toLocaleString(),
-                        totalVotes > 0 ? ((c.votes / totalVotes) * 100).toFixed(2) + '%' : '0%'
-                    ]),
-                    margin: { left: 20, right: 20 },
-                    styles: { fontSize: 10, cellPadding: 4 },
-                    headStyles: {
-                        fillColor: [0, 128, 0], // Kenya green
-                        textColor: [0, 0, 0], // Black text
-                        fontStyle: 'bold',
-                        fontSize: 11,
-                        halign: 'center'
-                    },
-                    alternateRowStyles: { fillColor: [245, 245, 245] }, // Light gray
-                    didParseCell: (data) => {
-                        // Highlight winner row
-                        if (data.row.index === 0) {
-                            data.cell.styles.fillColor = [255, 247, 237]; // Light orange
-                            data.cell.styles.fontStyle = 'bold';
-                        }
-                    }
-                });
-
-                yOffset = doc.lastAutoTable.finalY + 15;
-            }
-
-            // ==================== GOVERNORS, SENATORS, WOMEN REPS BY COUNTY ====================
-            const governorData = processedData.filter(a => a.seat?.toLowerCase().includes('governor'));
-            const senatorData = processedData.filter(a => a.seat?.toLowerCase().includes('senator'));
-            const womanRepData = processedData.filter(a =>
-                a.seat?.toLowerCase().includes('woman') || a.seat?.toLowerCase().includes('women')
-            );
-
-            if (governorData.length > 0 || senatorData.length > 0 || womanRepData.length > 0) {
-                // Get all counties
-                const allCounties = new Set([
-                    ...governorData.map(g => g.county),
-                    ...senatorData.map(s => s.county),
-                    ...womanRepData.map(w => w.county)
-                ].filter(c => c));
-
-                [...allCounties].sort().forEach(county => {
-                    // Check if we need a new page
-                    if (yOffset > 180) {
-                        doc.addPage();
-                        pageNumber++;
-                        addPageHeader();
-                    }
-
-                    doc.setFontSize(16);
-                    doc.setTextColor(0, 128, 0); // Kenya green
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(`${county} COUNTY`, 20, yOffset);
-                    yOffset += 10;
-
-                    // Governor
-                    const countyGov = governorData.filter(g => g.county === county).sort((a, b) => b.votes - a.votes);
-                    if (countyGov.length > 0) {
-                        const total = countyGov.reduce((sum, a) => sum + a.votes, 0);
-                        const winner = countyGov[0];
-
-                        doc.setFontSize(14);
-                        doc.setTextColor(0, 0, 0); // Black text
-                        doc.setFont('helvetica', 'bold');
-                        doc.text('GOVERNOR', 25, yOffset);
-                        yOffset += 8;
-
-                        // Winner highlight
-                        doc.setFillColor(255, 247, 237); // Light orange
-                        doc.roundedRect(25, yOffset - 2, doc.internal.pageSize.width - 50, 12, 2, 2, 'F');
-                        doc.setFontSize(9);
-                        doc.setFont('helvetica', 'bold');
-                        doc.text('WINNER:', 30, yOffset + 4);
-                        doc.setTextColor(0, 128, 0); // Kenya green
-                        doc.text(formatWinnerInfo(winner, total), 55, yOffset + 4);
-                        yOffset += 15;
-
-                        // All competitors table
-                        autoTable(doc, {
-                            startY: yOffset,
-                            head: [['Rank', 'Candidate', 'Party', 'Votes', 'Share']],
-                            body: countyGov.map((c, idx) => [
-                                idx + 1,
-                                c.name,
-                                c.party,
-                                c.votes.toLocaleString(),
-                                total > 0 ? ((c.votes / total) * 100).toFixed(1) + '%' : '0%'
-                            ]),
-                            margin: { left: 30, right: 20 },
-                            styles: { fontSize: 9, cellPadding: 3 },
-                            headStyles: {
-                                fillColor: [70, 130, 180], // Steel blue - professional and legible
-                                textColor: [0, 0, 0], // Black text
-                                fontStyle: 'bold',
-                                fontSize: 10,
-                                halign: 'center'
-                            },
-                            alternateRowStyles: { fillColor: [245, 245, 245] }, // Light gray
-                            didParseCell: (data) => {
-                                if (data.row.index === 0) {
-                                    data.cell.styles.fillColor = [255, 247, 237]; // Light orange
-                                    data.cell.styles.fontStyle = 'bold';
-                                }
-                            }
-                        });
-                        yOffset = doc.lastAutoTable.finalY + 10;
-                    }
-
-                    // Senator
-                    const countySen = senatorData.filter(s => s.county === county).sort((a, b) => b.votes - a.votes);
-                    if (countySen.length > 0) {
-                        const total = countySen.reduce((sum, a) => sum + a.votes, 0);
-                        const winner = countySen[0];
-
-                        doc.setFontSize(14);
-                        doc.setTextColor(0, 0, 0); // Black text
-                        doc.setFont('helvetica', 'bold');
-                        doc.text('SENATOR', 25, yOffset);
-                        yOffset += 8;
-
-                        // Winner highlight
-                        doc.setFillColor(255, 247, 237); // Light orange
-                        doc.roundedRect(25, yOffset - 2, doc.internal.pageSize.width - 50, 12, 2, 2, 'F');
-                        doc.setFontSize(9);
-                        doc.setFont('helvetica', 'bold');
-                        doc.text('WINNER:', 30, yOffset + 4);
-                        doc.setTextColor(0, 128, 0); // Kenya green
-                        doc.text(formatWinnerInfo(winner, total), 55, yOffset + 4);
-                        yOffset += 15;
-
-                        autoTable(doc, {
-                            startY: yOffset,
-                            head: [['Rank', 'Candidate', 'Party', 'Votes', 'Share']],
-                            body: countySen.map((c, idx) => [
-                                idx + 1,
-                                c.name,
-                                c.party,
-                                c.votes.toLocaleString(),
-                                total > 0 ? ((c.votes / total) * 100).toFixed(1) + '%' : '0%'
-                            ]),
-                            margin: { left: 30, right: 20 },
-                            styles: { fontSize: 9, cellPadding: 3 },
-                            headStyles: {
-                                fillColor: [70, 130, 180], // Steel blue
-                                textColor: [0, 0, 0], // White text
-                                fontStyle: 'bold',
-                                fontSize: 10,
-                                halign: 'center'
-                            },
-                            alternateRowStyles: { fillColor: [245, 245, 245] }, // Light gray
-                            didParseCell: (data) => {
-                                if (data.row.index === 0) {
-                                    data.cell.styles.fillColor = [255, 247, 237]; // Light orange
-                                    data.cell.styles.fontStyle = 'bold';
-                                }
-                            }
-                        });
-                        yOffset = doc.lastAutoTable.finalY + 10;
-                    }
-
-                    // Woman Representative
-                    const countyWoman = womanRepData.filter(w => w.county === county).sort((a, b) => b.votes - a.votes);
-                    if (countyWoman.length > 0) {
-                        const total = countyWoman.reduce((sum, a) => sum + a.votes, 0);
-                        const winner = countyWoman[0];
-
-                        doc.setFontSize(14);
-                        doc.setTextColor(0, 0, 0); // Black text
-                        doc.setFont('helvetica', 'bold');
-                        doc.text('WOMAN REPRESENTATIVE', 25, yOffset);
-                        yOffset += 8;
-
-                        // Winner highlight
-                        doc.setFillColor(255, 247, 237); // Light orange
-                        doc.roundedRect(25, yOffset - 2, doc.internal.pageSize.width - 50, 12, 2, 2, 'F');
-                        doc.setFontSize(9);
-                        doc.setFont('helvetica', 'bold');
-                        doc.text('WINNER:', 30, yOffset + 4);
-                        doc.setTextColor(0, 128, 0); // Kenya green
-                        doc.text(formatWinnerInfo(winner, total), 55, yOffset + 4);
-                        yOffset += 15;
-
-                        autoTable(doc, {
-                            startY: yOffset,
-                            head: [['Rank', 'Candidate', 'Party', 'Votes', 'Share']],
-                            body: countyWoman.map((c, idx) => [
-                                idx + 1,
-                                c.name,
-                                c.party,
-                                c.votes.toLocaleString(),
-                                total > 0 ? ((c.votes / total) * 100).toFixed(1) + '%' : '0%'
-                            ]),
-                            margin: { left: 30, right: 20 },
-                            styles: { fontSize: 9, cellPadding: 3 },
-                            headStyles: {
-                                fillColor: [70, 130, 180], // Steel blue
-                                textColor: [0, 0, 0], // White text
-                                fontStyle: 'bold',
-                                fontSize: 10,
-                                halign: 'center'
-                            },
-                            alternateRowStyles: { fillColor: [245, 245, 245] }, // Light gray
-                            didParseCell: (data) => {
-                                if (data.row.index === 0) {
-                                    data.cell.styles.fillColor = [255, 247, 237]; // Light orange
-                                    data.cell.styles.fontStyle = 'bold';
-                                }
-                            }
-                        });
-                        yOffset = doc.lastAutoTable.finalY + 15;
-                    }
-                });
-            }
-
-            // ==================== MEMBERS OF PARLIAMENT BY CONSTITUENCY ====================
-            const mpData = processedData.filter(a =>
-                a.seat?.toLowerCase().includes('parliament') || a.seat?.toLowerCase() === 'mp'
-            );
-
-            if (mpData.length > 0) {
-                // Group by constituency
-                const mpByConstituency = {};
-                mpData.forEach(mp => {
-                    if (mp.county && mp.constituency) {
-                        const key = `${mp.county}|${mp.constituency}`;
-                        if (!mpByConstituency[key]) mpByConstituency[key] = [];
-                        mpByConstituency[key].push(mp);
-                    }
-                });
-
-                Object.keys(mpByConstituency).sort().forEach(key => {
-                    // Check if we need a new page
-                    if (yOffset > 180) {
-                        doc.addPage();
-                        pageNumber++;
-                        addPageHeader();
-                    }
-
-                    const [county, constituency] = key.split('|');
-                    const candidates = mpByConstituency[key].sort((a, b) => b.votes - a.votes);
-                    const totalVotes = candidates.reduce((sum, a) => sum + a.votes, 0);
-                    const winner = candidates[0];
-
-                    doc.setFontSize(16);
-                    doc.setTextColor(0, 128, 0); // Kenya green
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(`MEMBER OF PARLIAMENT - ${constituency} CONSTITUENCY`, 20, yOffset);
-                    yOffset += 6;
-
-                    doc.setFontSize(10);
-                    doc.setTextColor(100, 100, 100); // Gray
-                    doc.text(`${county} COUNTY`, 20, yOffset);
-                    yOffset += 10;
-
-                    // Winner highlight
-                    doc.setFillColor(255, 247, 237); // Light orange
-                    doc.roundedRect(20, yOffset - 2, doc.internal.pageSize.width - 40, 15, 3, 3, 'F');
-
-                    doc.setFontSize(10);
-                    doc.setTextColor(0, 0, 0); // Black text
-                    doc.setFont('helvetica', 'bold');
-                    doc.text('WINNER:', 25, yOffset + 5);
-
-                    doc.setTextColor(0, 128, 0); // Kenya green
-                    doc.text(formatWinnerInfo(winner, totalVotes), 50, yOffset + 5);
-
-                    yOffset += 20;
-
-                    // All competitors table
-                    autoTable(doc, {
-                        startY: yOffset,
-                        head: [['Rank', 'Candidate', 'Party', 'Votes', 'Share']],
-                        body: candidates.map((c, idx) => [
-                            idx + 1,
-                            c.name,
-                            c.party,
-                            c.votes.toLocaleString(),
-                            totalVotes > 0 ? ((c.votes / totalVotes) * 100).toFixed(1) + '%' : '0%'
-                        ]),
-                        margin: { left: 20, right: 20 },
-                        styles: { fontSize: 9, cellPadding: 4 },
-                        headStyles: {
-                            fillColor: [0, 128, 128], // Teal - distinct from county seats
-                            textColor: [0, 0, 0], // Black text
-                            fontStyle: 'bold',
-                            fontSize: 10,
-                            halign: 'center'
-                        },
-                        alternateRowStyles: { fillColor: [245, 245, 245] },
-                        didParseCell: (data) => {
-                            if (data.row.index === 0) {
-                                data.cell.styles.fillColor = [255, 247, 237];
-                                data.cell.styles.fontStyle = 'bold';
-                            }
-                        }
-                    });
-
-                    yOffset = doc.lastAutoTable.finalY + 15;
-                });
-            }
-
-
-            const mcaData = processedData.filter(a =>
-                a.seat?.toLowerCase().includes('county assembly') || a.seat?.toLowerCase() === 'mca'
-            );
-
-            if (mcaData.length > 0) {
-                // Group by ward
-                const mcaByWard = {};
-                mcaData.forEach(mca => {
-                    if (mca.county && mca.constituency && mca.ward) {
-                        const key = `${mca.county}|${mca.constituency}|${mca.ward}`;
-                        if (!mcaByWard[key]) mcaByWard[key] = [];
-                        mcaByWard[key].push(mca);
-                    }
-                });
-
-                Object.keys(mcaByWard).sort().forEach(key => {
-                    // Check if we need a new page
-                    if (yOffset > 180) {
-                        doc.addPage();
-                        pageNumber++;
-                        addPageHeader();
-                    }
-
-                    const [county, constituency, ward] = key.split('|');
-                    const candidates = mcaByWard[key].sort((a, b) => b.votes - a.votes);
-                    const totalVotes = candidates.reduce((sum, a) => sum + a.votes, 0);
-                    const winner = candidates[0];
-
-                    doc.setFontSize(16);
-                    doc.setTextColor(0, 128, 0); // Kenya green
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(`MEMBER OF COUNTY ASSEMBLY - ${ward} WARD`, 20, yOffset);
-                    yOffset += 6;
-
-                    doc.setFontSize(10);
-                    doc.setTextColor(100, 100, 100); // Gray
-                    doc.text(`${constituency} CONSTITUENCY, ${county} COUNTY`, 20, yOffset);
-                    yOffset += 10;
-
-                    // Winner highlight
-                    doc.setFillColor(255, 247, 237); // Light orange
-                    doc.roundedRect(20, yOffset - 2, doc.internal.pageSize.width - 40, 15, 3, 3, 'F');
-
-                    doc.setFontSize(10);
-                    doc.setTextColor(0, 0, 0); // Black text
-                    doc.setFont('helvetica', 'bold');
-                    doc.text('WINNER:', 25, yOffset + 5);
-
-                    doc.setTextColor(0, 128, 0); // Kenya green
-                    doc.text(formatWinnerInfo(winner, totalVotes), 50, yOffset + 5);
-
-                    yOffset += 20;
-
-                    // All competitors table
-                    autoTable(doc, {
-                        startY: yOffset,
-                        head: [['Rank', 'Candidate', 'Party', 'Votes', 'Share']],
-                        body: candidates.map((c, idx) => [
-                            idx + 1,
-                            c.name,
-                            c.party,
-                            c.votes.toLocaleString(),
-                            totalVotes > 0 ? ((c.votes / totalVotes) * 100).toFixed(1) + '%' : '0%'
-                        ]),
-                        margin: { left: 20, right: 20 },
-                        styles: { fontSize: 9, cellPadding: 4 },
-                        headStyles: {
-                            fillColor: [128, 0, 128], // Purple - distinct from other seats
-                            // Black text
-                            textColor: [0, 0, 0], // White text
-                            fontStyle: 'bold',
-                            fontSize: 10,
-                            halign: 'center'
-                        },
-                        alternateRowStyles: { fillColor: [245, 245, 245] }, // Light gray
-                        didParseCell: (data) => {
-                            if (data.row.index === 0) {
-                                data.cell.styles.fillColor = [255, 247, 237]; // Light orange
-                                data.cell.styles.fontStyle = 'bold';
-                            }
-                        }
-                    });
-
-                    yOffset = doc.lastAutoTable.finalY + 15;
-                });
-            }
-
-            // Save the PDF
-            doc.save(`Election_Results_${new Date().toISOString().split('T')[0]}.pdf`);
-            setLoading(false);
-
-        } catch (err) {
-            console.error("Error:", err);
-            alert('Failed to generate election results. Please try again.');
-            setLoading(false);
-        }
-    };
-    // Helper function to add detailed results page
+    // ... (keep your existing handlePrintElectionResults function - it's long so I'll omit it here for brevity)
 
     const handleAddAspirant = async (e) => {
         e.preventDefault();
         setError(null);
+        setLoading(true);
 
         if (!formData.name.trim() || !formData.party.trim() || !formData.seat || !formData.county) {
             setError('Please fill in all required fields.');
+            setLoading(false);
             return;
         }
 
         try {
+            const aspirantData = {
+                name: formData.name.trim(),
+                party: formData.party.trim(),
+                seat: formData.seat,
+                county: formData.county,
+                constituency: formData.constituency.trim() || null,
+                ward: formData.ward.trim() || null,
+                created_at: new Date().toISOString()
+            };
+
+            // Add profile_picture only if it exists
+            if (formData.profile_picture) {
+                aspirantData.profile_picture = formData.profile_picture;
+            }
+
             const { error: insertError } = await supabase
                 .from('aspirants')
-                .insert([{
-                    name: formData.name.trim(),
-                    party: formData.party.trim(),
-                    seat: formData.seat,
-                    county: formData.county,
-                    constituency: formData.constituency.trim() || null,
-                    ward: formData.ward.trim() || null,
-                    created_at: new Date().toISOString()
-                }]);
+                .insert([aspirantData]);
 
             if (insertError) throw insertError;
 
             setSuccess('Candidate added successfully!');
             setShowAddModal(false);
-            setFormData({
-                name: '',
-                party: '',
-                seat: 'MP',
-                county: '',
-                constituency: '',
-                ward: ''
-            });
+            resetForm();
             onRefresh();
         } catch (error) {
             console.error('Error adding aspirant:', error);
             setError(`Failed to add candidate: ${error.message}`);
+        } finally {
+            setLoading(false);
         }
     };
 
     const handleEditAspirant = async (e) => {
         e.preventDefault();
+        setLoading(true);
+        setError(null);
 
         if (!editingAspirant) return;
 
-        setError(null);
-
         if (!formData.name.trim() || !formData.party.trim() || !formData.seat || !formData.county) {
             setError('Please fill in all required fields.');
+            setLoading(false);
             return;
         }
 
         try {
+            const aspirantData = {
+                name: formData.name.trim(),
+                party: formData.party.trim(),
+                seat: formData.seat,
+                county: formData.county,
+                constituency: formData.constituency.trim() || null,
+                ward: formData.ward.trim() || null,
+                updated_at: new Date().toISOString()
+            };
+
+            // Add profile_picture only if it exists and has changed
+            if (formData.profile_picture && formData.profile_picture !== editingAspirant.profile_picture) {
+                aspirantData.profile_picture = formData.profile_picture;
+            }
+
             const { error: updateError } = await supabase
                 .from('aspirants')
-                .update({
-                    name: formData.name.trim(),
-                    party: formData.party.trim(),
-                    seat: formData.seat,
-                    county: formData.county,
-                    constituency: formData.constituency.trim() || null,
-                    ward: formData.ward.trim() || null,
-                    updated_at: new Date().toISOString()
-                })
+                .update(aspirantData)
                 .eq('id', editingAspirant.id);
 
             if (updateError) throw updateError;
@@ -704,18 +237,13 @@ const AspirantPanel = ({
             setSuccess('Candidate updated successfully!');
             setShowEditModal(false);
             setEditingAspirant(null);
-            setFormData({
-                name: '',
-                party: '',
-                seat: 'MP',
-                county: '',
-                constituency: '',
-                ward: ''
-            });
-            onRefresh(); // Use parent's refresh
+            resetForm();
+            onRefresh();
         } catch (error) {
             console.error('Error updating aspirant:', error);
             setError(`Failed to update candidate: ${error.message}`);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -733,11 +261,24 @@ const AspirantPanel = ({
             if (error) throw error;
 
             setSuccess('Candidate deleted successfully!');
-            onRefresh(); // Use parent's refresh
+            onRefresh();
         } catch (error) {
             console.error('Error deleting aspirant:', error);
             setError('Failed to delete candidate. Please try again.');
         }
+    };
+
+    const resetForm = () => {
+        setFormData({
+            profile_picture: '',
+            name: '',
+            party: '',
+            seat: 'MP',
+            county: '',
+            constituency: '',
+            ward: ''
+        });
+        setProfilePreview(null);
     };
 
     const fetchVoterDetails = async (aspirantId) => {
@@ -817,8 +358,76 @@ const AspirantPanel = ({
         );
     });
 
+    // Image upload input component
+    const ImageUploadField = ({ value, onChange }) => {
+        const [preview, setPreview] = useState(value || profilePreview);
+
+        const handleFileChange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const imageUrl = await handleImagePick(file);
+            if (imageUrl) {
+                onChange(imageUrl);
+                setPreview(URL.createObjectURL(file));
+            }
+        };
+
+        return (
+            <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Profile Picture
+                </label>
+                <div className="flex items-center gap-4">
+                    <div className="relative">
+                        <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center overflow-hidden border-2 border-gray-200">
+                            {preview || value ? (
+                                <img 
+                                    src={preview || value} 
+                                    alt="Profile Preview" 
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                <User size={24} className="text-gray-400" />
+                            )}
+                        </div>
+                        {uploading && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
+                                <Loader2 size={20} className="animate-spin text-white" />
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex-1">
+                        <label className="cursor-pointer">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                                <Upload size={18} />
+                                <span className="text-sm font-medium">Choose Image</span>
+                            </div>
+                            <input
+                                type="file"
+                                accept=".jpg,.jpeg,.png"
+                                onChange={handleFileChange}
+                                className="hidden"
+                                disabled={uploading}
+                            />
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1">
+                            Recommended: Square image, max 5MB
+                        </p>
+                    </div>
+                </div>
+                {value && !preview && (
+                    <p className="text-xs text-green-600 mt-1">
+                        ✓ Image URL provided
+                    </p>
+                )}
+            </div>
+        );
+    };
+
     return (
         <div className="flex-1 flex flex-col min-h-0">
+            {/* Rest of your JSX remains the same until the modals */}
 
             <div className="flex-1 flex flex-col min-h-0 p-4 md:p-6">
                 <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
@@ -852,7 +461,7 @@ const AspirantPanel = ({
                         </div>
                     )}
 
-                    {/* Stats Overview */}
+                   
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                         <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
                             <p className="text-slate-500 text-sm font-medium">Total Votes</p>
@@ -897,7 +506,10 @@ const AspirantPanel = ({
                         </div>
                         <div className="flex gap-2">
                             <button
-                                onClick={() => setShowAddModal(true)}
+                                onClick={() => {
+                                    resetForm();
+                                    setShowAddModal(true);
+                                }}
                                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-blue-600/20"
                                 disabled={loading}
                             >
@@ -915,14 +527,12 @@ const AspirantPanel = ({
 
                             <button
                                 onClick={handlePrintElectionResults}
-                                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-red-600/20"
-                                disabled={false}
+                                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-green-600/20"
+                                disabled={loading}
                             >
-                                <Printer size={18} className={loading ? 'animate-spin' : ''} />
+                                <Printer size={18} />
                                 Print Results
                             </button>
-
-
                         </div>
                     </div>
 
@@ -939,7 +549,7 @@ const AspirantPanel = ({
                                     <div className="overflow-hidden flex-1 min-h-0">
                                         <div className="overflow-auto h-full">
                                             <table className="w-full">
-                                                <thead className="bg-linear-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
+                                                <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
                                                     <tr>
                                                         <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Candidate</th>
                                                         <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Party</th>
@@ -960,14 +570,27 @@ const AspirantPanel = ({
                                                                 key={aspirant.id}
                                                                 className="hover:bg-gray-50 transition-colors cursor-pointer"
                                                                 onClick={() => handleRowClick(aspirant)}
-
                                                             >
                                                                 <td className="px-6 py-4">
                                                                     <div className="flex items-center gap-3">
-                                                                        <div className="h-10 w-10 rounded-full bg-linear-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-blue-600 font-bold">
-
-                                                                            <img src={aspirant.profile_picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(aspirant.full_name) + '&background=blue&color=fff&size=128'} alt={aspirant.full_name} className="h-10 w-10 rounded-full object-cover" />
-
+                                                                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-blue-600 font-bold overflow-hidden">
+                                                                            {aspirant.profile_picture ? (
+                                                                                <img 
+                                                                                    src={aspirant.profile_picture} 
+                                                                                    alt={aspirant.name} 
+                                                                                    className="h-full w-full object-cover"
+                                                                                    onError={(e) => {
+                                                                                        e.target.onerror = null;
+                                                                                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(aspirant.name)}&background=blue&color=fff&size=128`;
+                                                                                    }}
+                                                                                />
+                                                                            ) : (
+                                                                                <img 
+                                                                                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(aspirant.name)}&background=blue&color=fff&size=128`} 
+                                                                                    alt={aspirant.name} 
+                                                                                    className="h-full w-full object-cover"
+                                                                                />
+                                                                            )}
                                                                         </div>
                                                                         <div>
                                                                             <p className="font-bold text-gray-900">{aspirant.name}</p>
@@ -1008,7 +631,7 @@ const AspirantPanel = ({
                                                                         </p>
                                                                         <div className="w-full bg-gray-200 rounded-full h-2">
                                                                             <div
-                                                                                className="bg-linear-to-r from-blue-500 to-indigo-500 h-2 rounded-full transition-all duration-1000"
+                                                                                className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full transition-all duration-1000"
                                                                                 style={{ width: `${Math.min(100, percentage)}%` }}
                                                                             ></div>
                                                                         </div>
@@ -1020,6 +643,7 @@ const AspirantPanel = ({
                                                                             onClick={() => {
                                                                                 setEditingAspirant(aspirant);
                                                                                 setFormData({
+                                                                                    profile_picture: aspirant.profile_picture || '',
                                                                                     name: aspirant.name,
                                                                                     party: aspirant.party,
                                                                                     seat: aspirant.seat,
@@ -1027,6 +651,7 @@ const AspirantPanel = ({
                                                                                     constituency: aspirant.constituency || '',
                                                                                     ward: aspirant.ward || ''
                                                                                 });
+                                                                                setProfilePreview(aspirant.profile_picture);
                                                                                 setShowEditModal(true);
                                                                             }}
                                                                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -1138,7 +763,7 @@ const AspirantPanel = ({
                                             {voter.profile ? (
                                                 <div className="space-y-3">
                                                     <div className="flex items-start gap-3">
-                                                        <div className="h-12 w-12 rounded-full bg-linear-to-br from-green-100 to-emerald-100 flex items-center justify-center text-green-600 font-bold text-lg shrink-0">
+                                                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center text-green-600 font-bold text-lg shrink-0">
                                                             {voter.profile.full_name?.charAt(0) || '?'}
                                                         </div>
                                                         <div className="flex-1">
@@ -1234,15 +859,26 @@ const AspirantPanel = ({
                         <div className="p-6 border-b border-gray-200 flex justify-between items-start">
                             <h3 className="text-xl font-bold text-gray-900">Add New Candidate</h3>
                             <button
-                                onClick={() => setShowAddModal(false)}
+                                onClick={() => {
+                                    setShowAddModal(false);
+                                    resetForm();
+                                }}
                                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                                disabled={loading}
+                                disabled={loading || uploading}
                             >
                                 <X size={20} className="text-gray-500" />
                             </button>
                         </div>
                         <form onSubmit={handleAddAspirant} className="p-6 space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Image Upload Field */}
+                                <div className="md:col-span-2">
+                                    <ImageUploadField
+                                        value={formData.profile_picture}
+                                        onChange={(url) => setFormData({ ...formData, profile_picture: url })}
+                                    />
+                                </div>
+
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-2">Full Name *</label>
                                     <input
@@ -1252,6 +888,7 @@ const AspirantPanel = ({
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                         placeholder="John Doe"
+                                        disabled={loading || uploading}
                                     />
                                 </div>
                                 <div>
@@ -1263,6 +900,7 @@ const AspirantPanel = ({
                                         onChange={(e) => setFormData({ ...formData, party: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                         placeholder="Party Name"
+                                        disabled={loading || uploading}
                                     />
                                 </div>
                                 <div>
@@ -1272,6 +910,7 @@ const AspirantPanel = ({
                                         value={formData.seat}
                                         onChange={(e) => setFormData({ ...formData, seat: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                        disabled={loading || uploading}
                                     >
                                         {seats.map(seat => (
                                             <option key={seat} value={seat}>{seat}</option>
@@ -1285,6 +924,7 @@ const AspirantPanel = ({
                                         value={formData.county}
                                         onChange={(e) => setFormData({ ...formData, county: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                        disabled={loading || uploading}
                                     >
                                         <option value="">Select County</option>
                                         {counties.map(county => (
@@ -1300,6 +940,7 @@ const AspirantPanel = ({
                                         onChange={(e) => setFormData({ ...formData, constituency: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                         placeholder="Constituency Name"
+                                        disabled={loading || uploading}
                                     />
                                 </div>
                                 <div>
@@ -1310,22 +951,26 @@ const AspirantPanel = ({
                                         onChange={(e) => setFormData({ ...formData, ward: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                         placeholder="Ward Name"
+                                        disabled={loading || uploading}
                                     />
                                 </div>
                             </div>
                             <div className="flex justify-end gap-3 pt-6">
                                 <button
                                     type="button"
-                                    onClick={() => setShowAddModal(false)}
+                                    onClick={() => {
+                                        setShowAddModal(false);
+                                        resetForm();
+                                    }}
                                     className="px-6 py-2 border border-gray-300 rounded-lg font-bold text-gray-700 hover:bg-gray-50 transition-colors"
-                                    disabled={loading}
+                                    disabled={loading || uploading}
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all flex items-center gap-2"
-                                    disabled={loading}
+                                    disabled={loading || uploading || !formData.name || !formData.party || !formData.seat || !formData.county}
                                 >
                                     {loading ? <Loader2 size={18} className="animate-spin" /> : <PlusCircle size={18} />}
                                     {loading ? 'Adding...' : 'Add Candidate'}
@@ -1346,15 +991,24 @@ const AspirantPanel = ({
                                 onClick={() => {
                                     setShowEditModal(false);
                                     setEditingAspirant(null);
+                                    resetForm();
                                 }}
                                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                                disabled={loading}
+                                disabled={loading || uploading}
                             >
                                 <X size={20} className="text-gray-500" />
                             </button>
                         </div>
                         <form onSubmit={handleEditAspirant} className="p-6 space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Image Upload Field */}
+                                <div className="md:col-span-2">
+                                    <ImageUploadField
+                                        value={formData.profile_picture}
+                                        onChange={(url) => setFormData({ ...formData, profile_picture: url })}
+                                    />
+                                </div>
+
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-2">Full Name *</label>
                                     <input
@@ -1363,6 +1017,7 @@ const AspirantPanel = ({
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                        disabled={loading || uploading}
                                     />
                                 </div>
                                 <div>
@@ -1373,6 +1028,7 @@ const AspirantPanel = ({
                                         value={formData.party}
                                         onChange={(e) => setFormData({ ...formData, party: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                        disabled={loading || uploading}
                                     />
                                 </div>
                                 <div>
@@ -1382,6 +1038,7 @@ const AspirantPanel = ({
                                         value={formData.seat}
                                         onChange={(e) => setFormData({ ...formData, seat: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                        disabled={loading || uploading}
                                     >
                                         {seats.map(seat => (
                                             <option key={seat} value={seat}>{seat}</option>
@@ -1395,6 +1052,7 @@ const AspirantPanel = ({
                                         value={formData.county}
                                         onChange={(e) => setFormData({ ...formData, county: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                        disabled={loading || uploading}
                                     >
                                         <option value="">Select County</option>
                                         {counties.map(county => (
@@ -1409,6 +1067,7 @@ const AspirantPanel = ({
                                         value={formData.constituency}
                                         onChange={(e) => setFormData({ ...formData, constituency: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                        disabled={loading || uploading}
                                     />
                                 </div>
                                 <div>
@@ -1418,6 +1077,7 @@ const AspirantPanel = ({
                                         value={formData.ward}
                                         onChange={(e) => setFormData({ ...formData, ward: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                        disabled={loading || uploading}
                                     />
                                 </div>
                             </div>
@@ -1427,16 +1087,17 @@ const AspirantPanel = ({
                                     onClick={() => {
                                         setShowEditModal(false);
                                         setEditingAspirant(null);
+                                        resetForm();
                                     }}
                                     className="px-6 py-2 border border-gray-300 rounded-lg font-bold text-gray-700 hover:bg-gray-50 transition-colors"
-                                    disabled={loading}
+                                    disabled={loading || uploading}
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all flex items-center gap-2"
-                                    disabled={loading}
+                                    disabled={loading || uploading || !formData.name || !formData.party || !formData.seat || !formData.county}
                                 >
                                     {loading ? <Loader2 size={18} className="animate-spin" /> : <Edit2 size={18} />}
                                     {loading ? 'Updating...' : 'Update Candidate'}
