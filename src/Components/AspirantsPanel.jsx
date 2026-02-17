@@ -960,13 +960,13 @@ const AspirantPanel = ({
                                                                 key={aspirant.id}
                                                                 className="hover:bg-gray-50 transition-colors cursor-pointer"
                                                                 onClick={() => handleRowClick(aspirant)}
-                                                                
+
                                                             >
                                                                 <td className="px-6 py-4">
                                                                     <div className="flex items-center gap-3">
                                                                         <div className="h-10 w-10 rounded-full bg-linear-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-blue-600 font-bold">
 
-                                                                            <img src={aspirant.profile_picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(aspirant.full_name) + '&background=blue&color=fff&size=128'} alt={registration.full_name} className="h-10 w-10 rounded-full object-cover" />
+                                                                            <img src={aspirant.profile_picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(aspirant.full_name) + '&background=blue&color=fff&size=128'} alt={aspirant.full_name} className="h-10 w-10 rounded-full object-cover" />
 
                                                                         </div>
                                                                         <div>
