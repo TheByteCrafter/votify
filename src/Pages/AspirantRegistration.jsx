@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase';
 import {
@@ -13,14 +13,18 @@ import {
     Home,
     Award
 } from 'lucide-react';
+import { uploadImage } from '../Utilities/CloudinaryConfig';
 
 export default function AspirantRegistration() {
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState({ message: '', type: '' });
-  const [isProcessing, setIsProcessing] = useState(false);
+    const [profilePicture, setProfilePicture] = useState(null);
+
+    const [cloudinaryUrl, setCloudinaryUrl] = useState('');
     const [formData, setFormData] = useState({
+        profilePicture: '',
         full_name: '',
         email: '',
         phone: '',
@@ -55,16 +59,49 @@ export default function AspirantRegistration() {
         "West Pokot"
     ];
 
+    // Add this cleanup
+    useEffect(() => {
+        return () => {
+            if (profilePicture) {
+                URL.revokeObjectURL(profilePicture);
+            }
+        };
+    }, [profilePicture]);
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
     };
 
-    const handleFileUpload = async (e, field) => {
+
+    const handleImagePick = async (e, field) => {
         const file = e.target.files[0];
         if (!file) return;
+        setProfilePicture(URL.createObjectURL(file));
+        try {
+            const imgUrl = await uploadImage(file);
+            setFormData({ ...formData, [field]: imgUrl });
+            setCloudinaryUrl(url);
+            setStatus({
+                message: `Profile picture uploaded successfully!`,
+                type: 'success'
+            });
+           
+        } catch (error) {
+            setStatus({
+                message: `Failed to upload profile picture. Please try again.`,
+                type: 'error'
+            });
+            alert(`Failed to upload profile picture: ${error.message}`);
+        }
+    };
 
-        //log the progress
+
+
+    const handleFileUpload = async (e, field) => {
+        const file = e.target.files[0];
+
+        if (!file) return;
+        
         console.log('Uploading file:', file.name);
 
         const filePath = `${Date.now()}-${file.name}`;
@@ -92,6 +129,8 @@ export default function AspirantRegistration() {
             type: 'success'
         });
     };
+
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -124,6 +163,7 @@ export default function AspirantRegistration() {
                     party_certificate: '',
                     other_document: ''
                 });
+                setProfilePicture(null);
                 setStep(1);
             }, 2000);
         } catch (error) {
@@ -159,13 +199,13 @@ export default function AspirantRegistration() {
                                 </div>
                             </div>
                         </div>
-                        
+
                     </div>
                 </div>
             </header>
 
             <main className="mx-auto max-w-4xl p-4 sm:p-8">
-              
+
                 <div className="mb-8">
                     <div className="flex items-center justify-between">
                         {[1, 2, 3].map((stepNum) => (
@@ -184,7 +224,7 @@ export default function AspirantRegistration() {
                     </div>
                 </div>
 
-               
+
                 {status.message && (
                     <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${status.type === 'error'
                         ? 'bg-red-50 text-red-700 border border-red-100'
@@ -195,19 +235,62 @@ export default function AspirantRegistration() {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-8">
-          
+
                     {step === 1 && (
                         <div className="rounded-2xl bg-white p-8 border border-gray-200 shadow-lg">
                             <h2 className="text-2xl font-bold text-gray-900 mb-2">Personal Information</h2>
                             <p className="text-gray-500 mb-6">Please provide your personal details for verification.</p>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                                {/* profile picture upload */}
+                                <div className="p-6 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-400 transition-colors md:col-span-2">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 overflow-hidden">
+                                            {profilePicture ? (
+                                                <img
+                                                    src={profilePicture}
+                                                    alt="Profile Preview"
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <UserPlus size={24} />
+                                            )}
+
+                                            {cloudinaryUrl ? (
+                                                <>
+                                                    <p className="text-sm text-blue-600 mt-2">
+                                                        ✓ Profile picture uploaded successfully
+                                                    </p>
+                                                    <p className="text-sm text-blue-600 mt-2">{cloudinaryUrl}</p>
+                                                </>
+                                            ) : (
+                                                <p className="text-sm text-gray-500 mt-2">
+                                                    No profile picture uploaded yet
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="font-bold text-gray-900">Profile Picture </h4>
+                                            <p className="text-sm text-gray-500">Upload a clear headshot for your candidate profile</p>
+                                            <input
+                                                type="file"
+                                                accept=".jpg,.jpeg,.png"
+                                                onChange={(e) => handleImagePick(e, 'profilePicture')}
+                                                className="mt-2"
+
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-2">Full Name *</label>
                                     <input
                                         type="text"
                                         name="full_name"
-                                        required
+                                        requiredimg
                                         value={formData.full_name}
                                         onChange={handleInputChange}
                                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -343,7 +426,7 @@ export default function AspirantRegistration() {
                         </div>
                     )}
 
-                    
+
                     {step === 3 && (
                         <div className="rounded-2xl bg-white p-8 border border-gray-200 shadow-lg">
                             <h2 className="text-2xl font-bold text-gray-900 mb-2">Document Upload</h2>

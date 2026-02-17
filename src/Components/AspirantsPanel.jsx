@@ -26,6 +26,7 @@ const AspirantPanel = ({
     const [editingAspirant, setEditingAspirant] = useState(null);
     const [isloading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
+        profile_picture: '',
         name: '',
         party: '',
         seat: 'MP',

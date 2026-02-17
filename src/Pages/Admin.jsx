@@ -870,7 +870,8 @@ export default function AdminPortal() {
                                                     <td className="px-6 py-4">
                                                         <div className="flex items-center gap-3">
                                                             <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                                                                {registration.full_name.charAt(0)}
+                                                               
+                                                               <img src={registration.profile_picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(registration.full_name) + '&background=blue&color=fff&size=128'} alt={registration.full_name} className="h-10 w-10 rounded-full object-cover" />
                                                             </div>
                                                             <div>
                                                                 <p className="font-bold text-gray-900">{registration.full_name}</p>
