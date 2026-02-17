@@ -80,15 +80,12 @@ export default function LandingPage({ onBanTrigger, checkBanStatus }) {
                 );
             }
 
-            // Step 4: Attempt authentication
             const { data, error: supabaseError } = await supabase.auth.signInWithPassword({
                 email: email.trim(),
                 password: password
             });
 
-            // Step 5: Handle authentication failure
             if (supabaseError) {
-                // Track failed attempt (this will increment the violation counter)
                 await fetch(`${API_URL}/voter/login-failed`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -103,15 +100,12 @@ export default function LandingPage({ onBanTrigger, checkBanStatus }) {
                 });
                 const updatedData = await updatedCheck.json();
 
-                // 🚨 CHECK IF THIS ATTEMPT CAUSED A BAN - NOW updatedData EXISTS
-                if (updatedData.violations?.ipViolations >= 15 || updatedData.violations?.emailViolations >= 10) {
-                    // TRIGGER GLOBAL BAN - This will show BanScreen and block ALL routes
-                    onBanTrigger(email, updatedData.violations);
+               if (updatedData.violations?.ipViolations >= 15 || updatedData.violations?.emailViolations >= 10) {
+                   onBanTrigger(email, updatedData.violations);
                     setLoading(false);
                     return;
                 }
 
-                // Show appropriate error message for non-ban failures
                 if (supabaseError.message.includes('Invalid login credentials')) {
                     const remainingAttempts = 10 - (updatedData.violations?.emailViolations || 0);
                     setError(`❌ Invalid email or password. ${remainingAttempts} attempt${remainingAttempts !== 1 ? 's' : ''} remaining before 24-hour lockout.`);
@@ -125,16 +119,14 @@ export default function LandingPage({ onBanTrigger, checkBanStatus }) {
                 return;
             }
 
-            // Step 6: SUCCESS - Reset violations and navigate
             await fetch(`${API_URL}/voter/login-success`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email }),
             }).catch(() => { });
 
-            // Clear ban state on successful login
             if (checkBanStatus) {
-                await checkBanStatus(email); // This will clear the ban if it existed
+                await checkBanStatus(email); 
             }
 
             // Clear any existing warnings

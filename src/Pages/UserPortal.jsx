@@ -595,7 +595,7 @@ export default function UserPortal() {
                             </div>
                         </div>
 
-                        
+
                         <div className="rounded-2xl bg-white p-6 border border-gray-200 shadow-2xl">
                             <h4 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
                                 <PieChartIcon className="h-5 w-5 text-purple-600" />
@@ -639,7 +639,7 @@ export default function UserPortal() {
                                 </ResponsiveContainer>
                             </div>
 
-                          
+
                             <div className="space-y-2">
                                 {chartData.map((item, index) => (
                                     <div key={index} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg transition-colors">
@@ -712,7 +712,7 @@ export default function UserPortal() {
                                         </div>
                                     )}
 
-                            
+
                                     {isVotedByMe && (
                                         <div className="absolute -top-4 -right-4 z-10">
                                             <div className="rounded-full bg-linear-to-r from-green-500 to-emerald-600 p-3 text-white shadow-2xl animate-bounce">
@@ -724,7 +724,8 @@ export default function UserPortal() {
                                     <div className="p-6">
                                         <div className="mb-6 flex items-center gap-4">
                                             <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-blue-50 text-3xl font-black text-blue-600 border-4 border-white shadow-xl">
-                                                {aspirant.name.charAt(0)}
+
+                                                <img src={aspirant.profile_picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(registration.full_name) + '&background=blue&color=fff&size=128'} alt={registration.full_name} className="h-10 w-10 rounded-full object-cover" />
                                             </div>
                                             <div className="flex-1">
                                                 <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-700">{aspirant.name}</h3>

@@ -323,7 +323,8 @@ export default function AdminPortal() {
                     phone: registration.phone,
                     county: registration.county,
                     constituency: registration.constituency,
-                    ward: registration.ward
+                    ward: registration.ward,
+                    profile_picture: registration.profile_picture
                 }]);
 
             if (aspirantError) throw aspirantError;
