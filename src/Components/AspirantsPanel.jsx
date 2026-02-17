@@ -237,7 +237,7 @@ const AspirantPanel = ({
                     ]),
                     margin: { left: 20, right: 20 },
                     styles: { fontSize: 10, cellPadding: 4 },
-                    headStyles: { 
+                    headStyles: {
                         fillColor: [0, 128, 0], // Kenya green
                         textColor: [0, 0, 0], // Black text
                         fontStyle: 'bold',
@@ -321,7 +321,7 @@ const AspirantPanel = ({
                             ]),
                             margin: { left: 30, right: 20 },
                             styles: { fontSize: 9, cellPadding: 3 },
-                            headStyles: { 
+                            headStyles: {
                                 fillColor: [70, 130, 180], // Steel blue - professional and legible
                                 textColor: [0, 0, 0], // Black text
                                 fontStyle: 'bold',
@@ -373,7 +373,7 @@ const AspirantPanel = ({
                             ]),
                             margin: { left: 30, right: 20 },
                             styles: { fontSize: 9, cellPadding: 3 },
-                            headStyles: { 
+                            headStyles: {
                                 fillColor: [70, 130, 180], // Steel blue
                                 textColor: [0, 0, 0], // White text
                                 fontStyle: 'bold',
@@ -425,7 +425,7 @@ const AspirantPanel = ({
                             ]),
                             margin: { left: 30, right: 20 },
                             styles: { fontSize: 9, cellPadding: 3 },
-                            headStyles: { 
+                            headStyles: {
                                 fillColor: [70, 130, 180], // Steel blue
                                 textColor: [0, 0, 0], // White text
                                 fontStyle: 'bold',
@@ -512,7 +512,7 @@ const AspirantPanel = ({
                         ]),
                         margin: { left: 20, right: 20 },
                         styles: { fontSize: 9, cellPadding: 4 },
-                        headStyles: { 
+                        headStyles: {
                             fillColor: [0, 128, 128], // Teal - distinct from county seats
                             textColor: [0, 0, 0], // Black text
                             fontStyle: 'bold',
@@ -522,7 +522,7 @@ const AspirantPanel = ({
                         alternateRowStyles: { fillColor: [245, 245, 245] },
                         didParseCell: (data) => {
                             if (data.row.index === 0) {
-                                data.cell.styles.fillColor = [255, 247, 237]; 
+                                data.cell.styles.fillColor = [255, 247, 237];
                                 data.cell.styles.fontStyle = 'bold';
                             }
                         }
@@ -532,7 +532,7 @@ const AspirantPanel = ({
                 });
             }
 
-           
+
             const mcaData = processedData.filter(a =>
                 a.seat?.toLowerCase().includes('county assembly') || a.seat?.toLowerCase() === 'mca'
             );
@@ -599,9 +599,9 @@ const AspirantPanel = ({
                         ]),
                         margin: { left: 20, right: 20 },
                         styles: { fontSize: 9, cellPadding: 4 },
-                        headStyles: { 
+                        headStyles: {
                             fillColor: [128, 0, 128], // Purple - distinct from other seats
-                              // Black text
+                            // Black text
                             textColor: [0, 0, 0], // White text
                             fontStyle: 'bold',
                             fontSize: 10,
@@ -960,11 +960,14 @@ const AspirantPanel = ({
                                                                 key={aspirant.id}
                                                                 className="hover:bg-gray-50 transition-colors cursor-pointer"
                                                                 onClick={() => handleRowClick(aspirant)}
+                                                                
                                                             >
                                                                 <td className="px-6 py-4">
                                                                     <div className="flex items-center gap-3">
                                                                         <div className="h-10 w-10 rounded-full bg-linear-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-blue-600 font-bold">
-                                                                            {aspirant.name.charAt(0)}
+
+                                                                            <img src={aspirant.profile_picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(aspirant.full_name) + '&background=blue&color=fff&size=128'} alt={registration.full_name} className="h-10 w-10 rounded-full object-cover" />
+
                                                                         </div>
                                                                         <div>
                                                                             <p className="font-bold text-gray-900">{aspirant.name}</p>
