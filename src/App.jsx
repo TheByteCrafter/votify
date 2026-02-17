@@ -8,7 +8,7 @@ import { supabase } from '../supabase';
 import SystemLocked from './Pages/SytstemLocked';
 import WaveLoader from './Components/WaveLoader';
 import RequireAdminLogin from './States/authSession';
-import TestBackend from './Pages/TestBanckend';
+
 import BanScreen from './Components/isBanned';
 import { AlertTriangle, Shield, Lock, AlertCircle, Fingerprint } from 'lucide-react';
 import emailjs from '@emailjs/browser';
@@ -537,7 +537,7 @@ function App() {
             }
           />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/test" element={<TestBackend />} />
+      
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>
