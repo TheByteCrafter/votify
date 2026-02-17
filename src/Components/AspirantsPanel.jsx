@@ -113,24 +113,7 @@ const AspirantPanel = ({
     }, [profilePreview]);
 
 
-    const handleImagePick = async (file) => {
-        if (!file) return null;
 
-
-        setProfilePreview(URL.createObjectURL(file));
-
-        try {
-            setUploading(true);
-            const imageUrl = await uploadImage(file);
-            return imageUrl;
-        } catch (error) {
-            console.error('Error uploading image:', error);
-            setError('Failed to upload image. Please try again.');
-            return null;
-        } finally {
-            setUploading(false);
-        }
-    };
 
     const handleResetVotes = async () => {
         if (!window.confirm('Are you sure you want to reset all votes? This action cannot be undone.')) {
@@ -661,6 +644,9 @@ const AspirantPanel = ({
             setLoading(false);
         }
     };
+
+
+
     const handleAddAspirant = async (e) => {
         e.preventDefault();
         setError(null);
@@ -683,7 +669,7 @@ const AspirantPanel = ({
                 created_at: new Date().toISOString()
             };
 
-            // Add profile_picture only if it exists
+
             if (formData.profile_picture) {
                 aspirantData.profile_picture = formData.profile_picture;
             }
@@ -865,6 +851,7 @@ const AspirantPanel = ({
             voter.profile.ward?.toLowerCase().includes(searchLower)
         );
     });
+   
     // Image upload input component
     const ImageUploadField = ({ value, onChange }) => {
         const [preview, setPreview] = useState(value);
@@ -893,6 +880,9 @@ const AspirantPanel = ({
 
                 // Show success message
                 setSuccess('Image uploaded successfully!');
+
+                // Clear the input value so the same file can be selected again if needed
+                e.target.value = null;
             } catch (error) {
                 console.error('Error uploading image:', error);
                 setError('Failed to upload image. Please try again.');
@@ -919,7 +909,6 @@ const AspirantPanel = ({
                                     alt="Profile Preview"
                                     className="h-full w-full object-cover"
                                     onError={(e) => {
-                                    
                                         e.target.onerror = null;
                                         e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name || 'User')}&background=blue&color=fff&size=128`;
                                     }}
@@ -948,14 +937,26 @@ const AspirantPanel = ({
                                 onChange={handleFileChange}
                                 className="hidden"
                                 disabled={isUploading}
+                                key={preview} // This forces a re-render when preview changes
                             />
                         </label>
                         <p className="text-xs text-gray-500 mt-1">
                             Recommended: Square image, max 5MB
                         </p>
-                        {value && (
-                            <p className="text-xs text-green-600 mt-1">
-                                ✓ Image ready to save
+                        {value && !isUploading && (
+                            <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                                <span>✓ Image ready to save</span>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setPreview(null);
+                                        onChange('');
+                                    }}
+                                    className="text-red-500 hover:text-red-700 ml-2"
+                                    title="Remove image"
+                                >
+                                    <X size={14} />
+                                </button>
                             </p>
                         )}
                     </div>

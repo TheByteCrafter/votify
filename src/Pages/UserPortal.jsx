@@ -725,7 +725,7 @@ export default function UserPortal() {
                                         <div className="mb-6 flex items-center gap-4">
                                             <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-blue-50 text-3xl font-black text-blue-600 border-4 border-white shadow-xl">
 
-                                                <img src={aspirant.profile_picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(aspirant.full_name) + '&background=blue&color=fff&size=128'} alt={aspirant.full_name} className="h-10 w-10 rounded-full object-cover" />
+                                                <img src={aspirant.profile_picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(aspirant.name) + '&background=blue&color=fff&size=128'} alt={aspirant.name} className="h-10 w-10 rounded-full object-cover" />
                                             </div>
                                             <div className="flex-1">
                                                 <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-700">{aspirant.name}</h3>
