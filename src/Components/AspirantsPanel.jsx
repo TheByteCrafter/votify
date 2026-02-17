@@ -103,7 +103,7 @@ const AspirantPanel = ({
         return () => clearInterval(interval);
     }, [onRefresh]);
 
-    // Cleanup profile preview URL
+    
     useEffect(() => {
         return () => {
             if (profilePreview) {
@@ -111,11 +111,12 @@ const AspirantPanel = ({
             }
         };
     }, [profilePreview]);
+    
 
     const handleImagePick = async (file) => {
         if (!file) return null;
 
-        // Show preview
+        
         setProfilePreview(URL.createObjectURL(file));
 
         try {
@@ -155,7 +156,7 @@ const AspirantPanel = ({
         try {
             setLoading(true);
 
-            // Fetch aspirants with their vote counts
+            
             const { data: aspirantsData, error: aspirantsError } = await supabase
                 .from("aspirants")
                 .select(`
