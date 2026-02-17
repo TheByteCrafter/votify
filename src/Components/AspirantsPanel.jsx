@@ -102,7 +102,7 @@ const AspirantPanel = ({
     }, [onRefresh]);
 
 
-   
+
 
 
 
@@ -764,7 +764,7 @@ const AspirantPanel = ({
             constituency: '',
             ward: ''
         });
-        setProfilePreview(null);
+        //setProfilePreview(null);
     };
 
     const fetchVoterDetails = async (aspirantId) => {
@@ -843,156 +843,155 @@ const AspirantPanel = ({
             voter.profile.ward?.toLowerCase().includes(searchLower)
         );
     });
-   
-    
+
+
     const ImageUploadField = ({ value, onChange }) => {
-    const [preview, setPreview] = useState(value);
-    const [isUploading, setIsUploading] = useState(false);
-    const [uploadError, setUploadError] = useState(null);
+        const [preview, setPreview] = useState(value);
+        const [isUploading, setIsUploading] = useState(false);
+        const [uploadError, setUploadError] = useState(null);
 
-    // Update preview when value changes (for edit mode)
-    useEffect(() => {
-        setPreview(value);
-        setUploadError(null);
-    }, [value]);
-
-    const handleFileChange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            setUploadError('File too large. Max size is 5MB');
-            return;
-        }
-
-        // Validate file type
-        if (!file.type.match(/image\/(jpeg|jpg|png)/)) {
-            setUploadError('Only JPG, JPEG, and PNG files are allowed');
-            return;
-        }
-
-        // Show local preview immediately
-        const localPreview = URL.createObjectURL(file);
-        setPreview(localPreview);
-        setIsUploading(true);
-        setUploadError(null);
-
-        try {
-            // Upload to Cloudinary
-            const imageUrl = await uploadImage(file);
-            
-            // Pass the URL back to parent
-            onChange(imageUrl);
-            
-            // Show success message
-            setSuccess('Image uploaded successfully!');
-
-            // Clear the input value so the same file can be selected again if needed
-            e.target.value = null;
-        } catch (error) {
-            console.error('Error uploading image:', error);
-            setUploadError('Failed to upload image. Please try again.');
-            // Revert preview on error
+        // Update preview when value changes (for edit mode)
+        useEffect(() => {
             setPreview(value);
-        } finally {
-            setIsUploading(false);
-            // Clean up local preview URL after a delay (to keep preview visible)
-            setTimeout(() => {
-                URL.revokeObjectURL(localPreview);
-            }, 1000);
-        }
-    };
+            setUploadError(null);
+        }, [value]);
 
-    const handleRemoveImage = () => {
-        setPreview(null);
-        onChange('');
-        setUploadError(null);
-    };
+        const handleFileChange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-    return (
-        <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-700 mb-2">
-                Profile Picture
-            </label>
-            <div className="flex items-start gap-4">
-                <div className="relative">
-                    <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center overflow-hidden border-2 border-gray-300 shadow-sm">
-                        {preview ? (
-                            <img
-                                src={preview}
-                                alt="Profile Preview"
-                                className="h-full w-full object-cover"
-                                onError={(e) => {
-                                    e.target.onerror = null;
-                                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name || 'User')}&background=blue&color=fff&size=128`;
-                                }}
-                            />
-                        ) : (
-                            <User size={32} className="text-gray-400" />
-                        )}
-                    </div>
-                    {isUploading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
-                            <Loader2 size={24} className="animate-spin text-white" />
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                setUploadError('File too large. Max size is 5MB');
+                return;
+            }
+
+            // Validate file type
+            if (!file.type.match(/image\/(jpeg|jpg|png)/)) {
+                setUploadError('Only JPG, JPEG, and PNG files are allowed');
+                return;
+            }
+
+            // Show local preview immediately
+            const localPreview = URL.createObjectURL(file);
+            setPreview(localPreview);
+            setIsUploading(true);
+            setUploadError(null);
+
+            try {
+                // Upload to Cloudinary
+                const imageUrl = await uploadImage(file);
+
+                // Pass the URL back to parent
+                onChange(imageUrl);
+
+                // Show success message
+                setSuccess('Image uploaded successfully!');
+
+                // Clear the input value so the same file can be selected again if needed
+                e.target.value = null;
+            } catch (error) {
+                console.error('Error uploading image:', error);
+                setUploadError('Failed to upload image. Please try again.');
+                // Revert preview on error
+                setPreview(value);
+            } finally {
+                setIsUploading(false);
+                // Clean up local preview URL after a delay (to keep preview visible)
+                setTimeout(() => {
+                    URL.revokeObjectURL(localPreview);
+                }, 1000);
+            }
+        };
+
+        const handleRemoveImage = () => {
+            setPreview(null);
+            onChange('');
+            setUploadError(null);
+        };
+
+        return (
+            <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Profile Picture
+                </label>
+                <div className="flex items-start gap-4">
+                    <div className="relative">
+                        <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center overflow-hidden border-2 border-gray-300 shadow-sm">
+                            {preview ? (
+                                <img
+                                    src={preview}
+                                    alt="Profile Preview"
+                                    className="h-full w-full object-cover"
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name || 'User')}&background=blue&color=fff&size=128`;
+                                    }}
+                                />
+                            ) : (
+                                <User size={32} className="text-gray-400" />
+                            )}
                         </div>
-                    )}
-                </div>
-                <div className="flex-1">
-                    <div className="flex flex-wrap gap-2">
-                        <label className="cursor-pointer">
-                            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                                isUploading 
-                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                    : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
-                            }`}>
-                                <Upload size={18} />
-                                <span className="text-sm font-medium">
-                                    {isUploading ? 'Uploading...' : preview ? 'Change Image' : 'Choose Image'}
-                                </span>
+                        {isUploading && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
+                                <Loader2 size={24} className="animate-spin text-white" />
                             </div>
-                            <input
-                                type="file"
-                                accept=".jpg,.jpeg,.png"
-                                onChange={handleFileChange}
-                                className="hidden"
-                                disabled={isUploading}
-                            />
-                        </label>
-                        
-                        {preview && !isUploading && (
-                            <button
-                                type="button"
-                                onClick={handleRemoveImage}
-                                className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition-colors border border-red-200"
-                            >
-                                <X size={18} />
-                                <span className="text-sm font-medium">Remove</span>
-                            </button>
                         )}
                     </div>
-                    
-                    <p className="text-xs text-gray-500 mt-2">
-                        Recommended: Square image, max 5MB (JPG, PNG)
-                    </p>
-                    
-                    {uploadError && (
-                        <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
-                            <AlertCircle size={12} />
-                            {uploadError}
+                    <div className="flex-1">
+                        <div className="flex flex-wrap gap-2">
+                            <label className="cursor-pointer">
+                                <div className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${isUploading
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
+                                    }`}>
+                                    <Upload size={18} />
+                                    <span className="text-sm font-medium">
+                                        {isUploading ? 'Uploading...' : preview ? 'Change Image' : 'Choose Image'}
+                                    </span>
+                                </div>
+                                <input
+                                    type="file"
+                                    accept=".jpg,.jpeg,.png"
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                    disabled={isUploading}
+                                />
+                            </label>
+
+                            {preview && !isUploading && (
+                                <button
+                                    type="button"
+                                    onClick={handleRemoveImage}
+                                    className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition-colors border border-red-200"
+                                >
+                                    <X size={18} />
+                                    <span className="text-sm font-medium">Remove</span>
+                                </button>
+                            )}
+                        </div>
+
+                        <p className="text-xs text-gray-500 mt-2">
+                            Recommended: Square image, max 5MB (JPG, PNG)
                         </p>
-                    )}
-                    
-                    {value && !isUploading && !uploadError && (
-                        <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                            <span>✓ Image ready to save</span>
-                        </p>
-                    )}
+
+                        {uploadError && (
+                            <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                                <AlertCircle size={12} />
+                                {uploadError}
+                            </p>
+                        )}
+
+                        {value && !isUploading && !uploadError && (
+                            <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                                <span>✓ Image ready to save</span>
+                            </p>
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
-    );
-};
+        );
+    };
     return (
         <div className="flex-1 flex flex-col min-h-0">
 
@@ -1537,7 +1536,7 @@ const AspirantPanel = ({
                                 <button
                                     type="submit"
                                     className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all flex items-center gap-2"
-                                    disabled={loading || uploading || !formData.name || !formData.party || !formData.seat || !formData.county}
+                                    disabled={loading || !formData.name || !formData.party || !formData.seat || !formData.county}
                                 >
                                     {loading ? <Loader2 size={18} className="animate-spin" /> : <PlusCircle size={18} />}
                                     {loading ? 'Adding...' : 'Add Candidate'}
@@ -1605,7 +1604,7 @@ const AspirantPanel = ({
                                         value={formData.seat}
                                         onChange={(e) => setFormData({ ...formData, seat: e.target.value })}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                      disabled={loading}
+                                        disabled={loading}
                                     >
                                         {seats.map(seat => (
                                             <option key={seat} value={seat}>{seat}</option>
@@ -1657,14 +1656,14 @@ const AspirantPanel = ({
                                         resetForm();
                                     }}
                                     className="px-6 py-2 border border-gray-300 rounded-lg font-bold text-gray-700 hover:bg-gray-50 transition-colors"
-                                   disabled={loading}
+                                    disabled={loading}
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all flex items-center gap-2"
-                                    disabled={loading || uploading || !formData.name || !formData.party || !formData.seat || !formData.county}
+                                    disabled={loading || !formData.name || !formData.party || !formData.seat || !formData.county}
                                 >
                                     {loading ? <Loader2 size={18} className="animate-spin" /> : <Edit2 size={18} />}
                                     {loading ? 'Updating...' : 'Update Candidate'}
