@@ -103,7 +103,7 @@ const AspirantPanel = ({
         return () => clearInterval(interval);
     }, [onRefresh]);
 
-    
+
     useEffect(() => {
         return () => {
             if (profilePreview) {
@@ -111,12 +111,12 @@ const AspirantPanel = ({
             }
         };
     }, [profilePreview]);
-    
+
 
     const handleImagePick = async (file) => {
         if (!file) return null;
 
-        
+
         setProfilePreview(URL.createObjectURL(file));
 
         try {
@@ -152,11 +152,11 @@ const AspirantPanel = ({
         }
     };
 
-   const handlePrintElectionResults = async () => {
+    const handlePrintElectionResults = async () => {
         try {
             setLoading(true);
 
-            
+
             const { data: aspirantsData, error: aspirantsError } = await supabase
                 .from("aspirants")
                 .select(`
@@ -865,19 +865,43 @@ const AspirantPanel = ({
             voter.profile.ward?.toLowerCase().includes(searchLower)
         );
     });
-
     // Image upload input component
     const ImageUploadField = ({ value, onChange }) => {
-        const [preview, setPreview] = useState(value || profilePreview);
+        const [preview, setPreview] = useState(value);
+        const [isUploading, setIsUploading] = useState(false);
+
+        // Update preview when value changes (for edit mode)
+        useEffect(() => {
+            setPreview(value);
+        }, [value]);
 
         const handleFileChange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            const imageUrl = await handleImagePick(file);
-            if (imageUrl) {
+            // Show local preview immediately
+            const localPreview = URL.createObjectURL(file);
+            setPreview(localPreview);
+            setIsUploading(true);
+
+            try {
+                // Upload to Cloudinary
+                const imageUrl = await uploadImage(file);
+
+                // Pass the URL back to parent
                 onChange(imageUrl);
-                setPreview(URL.createObjectURL(file));
+
+                // Show success message
+                setSuccess('Image uploaded successfully!');
+            } catch (error) {
+                console.error('Error uploading image:', error);
+                setError('Failed to upload image. Please try again.');
+                // Revert preview on error
+                setPreview(value);
+            } finally {
+                setIsUploading(false);
+                // Clean up local preview URL
+                URL.revokeObjectURL(localPreview);
             }
         };
 
@@ -889,17 +913,22 @@ const AspirantPanel = ({
                 <div className="flex items-center gap-4">
                     <div className="relative">
                         <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center overflow-hidden border-2 border-gray-200">
-                            {preview || value ? (
+                            {preview ? (
                                 <img
-                                    src={preview || value}
+                                    src={preview}
                                     alt="Profile Preview"
                                     className="h-full w-full object-cover"
+                                    onError={(e) => {
+                                    
+                                        e.target.onerror = null;
+                                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name || 'User')}&background=blue&color=fff&size=128`;
+                                    }}
                                 />
                             ) : (
                                 <User size={24} className="text-gray-400" />
                             )}
                         </div>
-                        {uploading && (
+                        {isUploading && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
                                 <Loader2 size={20} className="animate-spin text-white" />
                             </div>
@@ -909,33 +938,34 @@ const AspirantPanel = ({
                         <label className="cursor-pointer">
                             <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
                                 <Upload size={18} />
-                                <span className="text-sm font-medium">Choose Image</span>
+                                <span className="text-sm font-medium">
+                                    {isUploading ? 'Uploading...' : 'Choose Image'}
+                                </span>
                             </div>
                             <input
                                 type="file"
                                 accept=".jpg,.jpeg,.png"
                                 onChange={handleFileChange}
                                 className="hidden"
-                                disabled={uploading}
+                                disabled={isUploading}
                             />
                         </label>
                         <p className="text-xs text-gray-500 mt-1">
                             Recommended: Square image, max 5MB
                         </p>
+                        {value && (
+                            <p className="text-xs text-green-600 mt-1">
+                                ✓ Image ready to save
+                            </p>
+                        )}
                     </div>
                 </div>
-                {value && !preview && (
-                    <p className="text-xs text-green-600 mt-1">
-                        ✓ Image URL provided
-                    </p>
-                )}
             </div>
         );
     };
 
     return (
         <div className="flex-1 flex flex-col min-h-0">
-            {/* Rest of your JSX remains the same until the modals */}
 
             <div className="flex-1 flex flex-col min-h-0 p-4 md:p-6">
                 <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
