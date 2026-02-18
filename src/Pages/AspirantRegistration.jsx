@@ -24,7 +24,7 @@ export default function AspirantRegistration() {
 
     const [cloudinaryUrl, setCloudinaryUrl] = useState('');
     const [formData, setFormData] = useState({
-        profilePicture: '',
+        profile_picture: '',
         full_name: '',
         email: '',
         phone: '',
@@ -276,7 +276,7 @@ export default function AspirantRegistration() {
                                             <input
                                                 type="file"
                                                 accept=".jpg,.jpeg,.png"
-                                                onChange={(e) => handleImagePick(e, 'profilePicture')}
+                                                onChange={(e) => handleImagePick(e, 'profile_picture')}
                                                 className="mt-2"
 
                                             />
