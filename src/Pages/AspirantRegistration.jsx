@@ -80,7 +80,7 @@ export default function AspirantRegistration() {
         try {
             const imgUrl = await uploadImage(file);
             setFormData({ ...formData, [field]: imgUrl });
-            setCloudinaryUrl(url);
+            setCloudinaryUrl(imgUrl);
             setStatus({
                 message: `Profile picture uploaded successfully!`,
                 type: 'success'
