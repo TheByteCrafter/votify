@@ -75,7 +75,7 @@ export default function AdminPortal() {
             emailjs.init(publicKey);
             console.log('✅ EmailJS initialized');
         } else {
-            console.error('❌ EmailJS public key not found');
+            console.error('❌EmailJS public key not found');
         }
     }, []);
 
