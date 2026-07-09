@@ -133,6 +133,10 @@ const LoginPage = ({ onLoginSuccess }) => {
 
       if (onLoginSuccess) {
         console.log('Calling onLoginSuccess callback with:', data.admin);
+        // Save JWT token for authenticated API calls
+        if (data.token) {
+          localStorage.setItem('admin_token', data.token);
+        }
         onLoginSuccess(data.admin);
       } else {
         console.warn('onLoginSuccess prop not provided!');

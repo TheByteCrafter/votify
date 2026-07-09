@@ -66,7 +66,12 @@ function RequireAdminLogin({
       if (resetLoginAttempts) {
         resetLoginAttempts();
       }
-      
+
+      // Save JWT token for authenticated API calls (used by VoterManagement, etc.)
+      if (data.token) {
+        localStorage.setItem('admin_token', data.token);
+      }
+
       setAdmin(data.admin);
       setIsAuthenticated(true);
       return { success: true };

@@ -209,18 +209,12 @@ function App() {
       clearInterval(rateLimitTimerRef.current);
     }
 
+    // Single getSession call (was called twice before — redundant)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setAdminSession(null);
-    });
-
-    supabase.auth.onAuthStateChange((_event, session) => {
-      setAdminSession(session);
-    });
-
+    // Single auth state listener (was calling onAuthStateChange twice — caused duplicate auth events)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
