@@ -88,7 +88,8 @@ export default function RegisterVoter() {
 
         if (signUpData?.user) {
             await supabase.from('profiles').insert({
-                id: signUpData.user.id, 
+                user_id: signUpData.user.id,
+                email: formData.email,
                 full_name: formData.fullName,
                 id_number: formData.idNumber,
                 phone_number: formData.phoneNumber,

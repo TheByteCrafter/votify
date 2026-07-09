@@ -156,8 +156,8 @@ const VoterManagement = () => {
     profile.constituency?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleDelete = async (id) => {
-    const profile = profiles.find(p => p.id === id);
+  const handleDelete = async (user_id) => {
+    const profile = profiles.find(p => p.user_id === user_id);
     const confirmation = window.confirm(
       `Are you sure you want to remove voter record for ${profile?.full_name} (ID: ${profile?.id_number})? This action cannot be undone.`
     );
@@ -169,7 +169,7 @@ const VoterManagement = () => {
       const { error: deleteError } = await supabase
         .from('profiles')
         .delete()
-        .eq('id', id);
+        .eq('user_id', user_id);
 
       if (deleteError) throw deleteError;
 
@@ -191,6 +191,11 @@ const VoterManagement = () => {
   const handleAddVoter = async (e) => {
     e.preventDefault();
 
+   if (loading) {
+      console.warn('⚠️ Registration already in progress — ignoring duplicate submit');
+      return;
+    }
+
     // Clear previous errors
     setError(null);
     setModalValidationErrors({});
@@ -210,7 +215,9 @@ const VoterManagement = () => {
         throw new Error('Admin session expired. Please log in again.');
       }
 
-      const response = await fetch(`${API_URL}/voters`, {
+      console.log(`📝 Creating voter: id_number=${formData.id_number.trim()}, email=${formData.email.trim()}`);
+
+      const response = await fetch(`${API_URL}/v1/voters/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -232,6 +239,8 @@ const VoterManagement = () => {
       if (!result.success) {
         throw new Error(result.error || 'Failed to register voter');
       }
+
+      console.log(`✅ Voter registered — user_id: ${result.data.user_id}, id_number: ${formData.id_number.trim()}`);
 
       setSuccess({
         message: 'Voter registered successfully!',
@@ -255,7 +264,7 @@ const VoterManagement = () => {
     } catch (err) {
       console.error("Registration error:", err);
       setError({
-        message: 'Failed to register voter',
+        message: 'Registration failed',
         details: err.message,
         type: 'add'
       });
@@ -361,10 +370,10 @@ const VoterManagement = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredProfiles.map(profile => (
-            <div key={profile.id} className="group bg-white border border-slate-200 rounded-[2rem] p-6 hover:border-blue-400 hover:shadow-2xl hover:shadow-blue-500/10 transition-all relative overflow-hidden">
+            <div key={profile.user_id} className="group bg-white border border-slate-200 rounded-[2rem] p-6 hover:border-blue-400 hover:shadow-2xl hover:shadow-blue-500/10 transition-all relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
-                  onClick={() => handleDelete(profile.id)}
+                  onClick={() => handleDelete(profile.user_id)}
                   className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                   title="Delete voter record"
                 >

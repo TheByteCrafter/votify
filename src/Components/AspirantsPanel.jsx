@@ -789,12 +789,12 @@ const AspirantPanel = ({
             const { data: profilesData, error: profilesError } = await supabase
                 .from('profiles')
                 .select('*')
-                .in('id', userIds);
+                .in('user_id', userIds);
 
             if (profilesError) throw profilesError;
 
             const combinedData = votesData.map(vote => {
-                const profile = profilesData?.find(p => p.id === vote.user_id);
+                const profile = profilesData?.find(p => p.user_id === vote.user_id);
                 return {
                     userId: vote.user_id,
                     votedAt: vote.voted_at,

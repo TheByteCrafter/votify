@@ -60,7 +60,7 @@ export default function UserPortal() {
             const { data: profileData } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('id', user.id)
+                .eq('user_id', user.id)
                 .single();
 
             if (profileData) setProfile(profileData);
