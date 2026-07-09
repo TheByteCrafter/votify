@@ -25,6 +25,8 @@ export default function LandingPage({ onBanTrigger, checkBanStatus }) {
 
         try {
 
+
+            //landing page
             const rateLimitCheck = await fetch(`${API_URL}/voter/login-check`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
