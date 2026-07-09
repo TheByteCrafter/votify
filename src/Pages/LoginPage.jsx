@@ -3,7 +3,7 @@ import { Vote, Lock, Mail, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide
 import { rateLimiter } from '../States/rateLimit';
 import { Ban,Clock } from 'lucide-react';
 
-const API_URL = import.meta.env.REACT_APP_API_URL;
+const API_URL = import.meta.env.VITE_APP_API_URL;
 
 
 const LoginPage = ({ onLoginSuccess }) => {

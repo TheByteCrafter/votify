@@ -4,7 +4,7 @@ import Admin from '../Pages/Admin';
 import WaveLoader from '../Components/WaveLoader';
 
 
-const API_URL = import.meta.env.REACT_APP_API_URL;
+const API_URL = import.meta.env.VITE_APP_API_URL;
 
 function RequireAdminLogin({ 
   refreshSystemStatus, 

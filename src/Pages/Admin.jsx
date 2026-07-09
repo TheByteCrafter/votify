@@ -30,7 +30,7 @@ import VoterManagement from '../Components/VoterManagement';
 import AdminSettings from '../Components/AdminSettings';
 import AspirantPanel from '../Components/AspirantsPanel';
 
-const API_URL = import.meta.env.REACT_APP_API_URL;
+const API_URL = import.meta.env.VITE_APP_API_URL;
 
 
 export default function AdminPortal() {

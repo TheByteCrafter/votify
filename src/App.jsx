@@ -13,7 +13,7 @@ import BanScreen from './Components/isBanned';
 import { AlertTriangle, Shield, Lock, AlertCircle, Fingerprint } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 
-const API_URL = import.meta.env.REACT_APP_API_URL || 'https://votifybackend-h0yt.onrender.com/api';
+const API_URL = import.meta.env.VITE_APP_API_URL || 'https://votifybackend-h0yt.onrender.com/api';
 
 function App() {
   const [session, setSession] = useState(null);
