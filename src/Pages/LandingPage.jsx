@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, Lock, ArrowRight, AlertCircle, Shield } from 'lucide-react';
 import { supabase } from '../../supabase';
 
-const API_URL = 'https://votifybackend-h0yt.onrender.com/api';
+const API_URL = import.meta.env.VITE_APP_API_URL;
 
 export default function LandingPage({ onBanTrigger, checkBanStatus }) {
     const navigate = useNavigate();

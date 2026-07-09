@@ -4,7 +4,7 @@ import Admin from '../Pages/Admin';
 import WaveLoader from '../Components/WaveLoader';
 
 
-const API_URL = 'https://votifybackend-h0yt.onrender.com/api';
+const API_URL = import.meta.env.REACT_APP_API_URL;
 
 function RequireAdminLogin({ 
   refreshSystemStatus, 

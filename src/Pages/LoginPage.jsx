@@ -3,7 +3,9 @@ import { Vote, Lock, Mail, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide
 import { rateLimiter } from '../States/rateLimit';
 import { Ban,Clock } from 'lucide-react';
 
-const API_URL = ' https://votifybackend-h0yt.onrender.com/api';
+const API_URL = import.meta.env.REACT_APP_API_URL;
+
+
 const LoginPage = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -267,7 +269,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                 <input
                   type="email"
-                  placeholder="admin@agency.gov"
+                  placeholder="admin@me.com"
                   className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all text-sm text-slate-800 font-medium placeholder:text-slate-300"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
